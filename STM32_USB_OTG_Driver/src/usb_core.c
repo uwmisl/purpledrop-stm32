@@ -326,7 +326,7 @@ USB_OTG_STS USB_OTG_CoreInit(USB_OTG_CORE_HANDLE *pdev)
   USB_OTG_GUSBCFG_TypeDef  usbcfg;
   USB_OTG_GCCFG_TypeDef    gccfg;
   USB_OTG_GAHBCFG_TypeDef  ahbcfg;
-#if defined (STM32F446xx) || defined (STM32F469_479xx)
+#if defined (STM32F413_423xx) || defined (STM32F446xx) || defined (STM32F469_479xx)
   USB_OTG_DCTL_TypeDef     dctl;
 #endif
   usbcfg.d32 = 0;
@@ -338,7 +338,7 @@ USB_OTG_STS USB_OTG_CoreInit(USB_OTG_CORE_HANDLE *pdev)
     gccfg.d32 = USB_OTG_READ_REG32(&pdev->regs.GREGS->GCCFG);
     gccfg.b.pwdn = 0;
 
-#if defined (STM32F446xx) || defined (STM32F469_479xx)
+#if defined (STM32F413_423xx) || defined (STM32F446xx) || defined (STM32F469_479xx)
 #else
     if (pdev->cfg.Sof_output)
     {
@@ -389,19 +389,21 @@ USB_OTG_STS USB_OTG_CoreInit(USB_OTG_CORE_HANDLE *pdev)
     gccfg.d32 = 0;
     gccfg.b.pwdn = 1;
 
-#if defined (STM32F446xx) || defined (STM32F469_479xx)
+#if defined (STM32F413_423xx) || defined (STM32F446xx) || defined (STM32F469_479xx)
+#ifdef VBUS_SENSING_ENABLED
     gccfg.b.vbden = 1;
+#endif
 #else
+#ifndef VBUS_SENSING_ENABLED
+    gccfg.b.disablevbussensing = 1;
+#endif
     gccfg.b.vbussensingA = 1 ;
     gccfg.b.vbussensingB = 1 ;
 #endif
 
 
-#ifndef VBUS_SENSING_ENABLED
-    gccfg.b.disablevbussensing = 1;
-#endif
 
-#if defined (STM32F446xx) || defined (STM32F469_479xx)
+#if defined (STM32F413_423xx) || defined (STM32F446xx) || defined (STM32F469_479xx)
 #else
     if(pdev->cfg.Sof_output)
     {
@@ -431,7 +433,7 @@ USB_OTG_STS USB_OTG_CoreInit(USB_OTG_CORE_HANDLE *pdev)
   USB_OTG_EnableCommonInt(pdev);
 #endif
 
-#if defined (STM32F446xx) || defined (STM32F469_479xx)
+#if defined (STM32F413_423xx) || defined (STM32F446xx) || defined (STM32F469_479xx)
   usbcfg.d32 = USB_OTG_READ_REG32(&pdev->regs.GREGS->GUSBCFG);
   usbcfg.b.srpcap = 1;
   /*clear sdis bit in dctl */

@@ -613,7 +613,7 @@ uint32_t Reserved :
   b;
 } USB_OTG_DTXFSTSn_TypeDef ;
 
-#if defined (STM32F446xx) || defined (STM32F469_479xx)
+#if defined (STM32F413_423xx) || defined (STM32F446xx) || defined (STM32F469_479xx)
 typedef union _USB_OTG_GCCFG_TypeDef 
 {
   uint32_t d32;
