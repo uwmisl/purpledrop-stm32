@@ -7,16 +7,24 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+alloc-cortex-m = {git = "https://github.com/rust-embedded/alloc-cortex-m"}
 cortex-m = "0.6.2"
 cortex-m-rt = "0.6.10"
 cortex-m-rtfm = "0.5.1"
+heapless = "0.5"
+panic-itm = "0.4"
+pd-driver-messages = {git = "https://github.com/mcbridejc/pd-driver-messages"}
 stm32-usbd = {version="0.5.1", features=["ram_access_1x16"]}
-panic-itm = "*"
+typenum = "1.12"
+usbd-serial = "0.1"
+usb-device = "0.2"
+
 stm32f4 = "0.10"
 
 [dependencies.stm32f4xx-hal]
-version = "*"
+version = "0.7"
 default-features = false
+path = "../stm32f4xx-hal"
 features = ["stm32f413", "usb_fs", "rt"]
 
 [profile.release]
