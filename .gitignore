@@ -1,8 +1,14 @@
 **/*.rs.bk
 .#*
+*.a
 .gdb_history
-Cargo.lock
-target/
+build/
+
+# Cmake outputs
+test/PurpleDropTest
+test/Makefile
+CMakeFiles
+CMakeCache.txt
 
 # editor files
 .vscode/*
