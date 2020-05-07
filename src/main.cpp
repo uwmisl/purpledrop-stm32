@@ -11,30 +11,53 @@ extern "C" {
 #include "CircularBuffer.hpp"
 uint32_t SystickClock = 0;
 
+// void SetupClocks() {
+//     // Setup clocks to use 8MHz HSE -> 96MHz sys clock + 48MHz for USB
+//     FLASH_SetLatency(FLASH_Latency_3);
+//     RCC_HSEConfig(RCC_HSE_ON);
+//     RCC_WaitForHSEStartUp();
+//     RCC_PLLConfig(
+//         RCC_PLLSource_HSE, 
+//         8,   // PLLM,
+//         384, // PLLN
+//         4,   // PLLP
+//         8,   // PLLQ
+//         2    // PLLR
+//     );
+//     RCC_PLLCmd(ENABLE);
+//     while(RCC_GetFlagStatus(RCC_FLAG_PLLRDY));
+//     RCC_HCLKConfig(RCC_SYSCLK_Div1);
+//     RCC_PCLK1Config(RCC_HCLK_Div1);
+//     RCC_PCLK2Config(RCC_HCLK_Div2);
+//     RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);
+//     RCC_48MHzClockSourceConfig(RCC_CK48CLKSOURCE_PLLQ);
+
+//     /* SysTick end of count event each ms */
+//     SysTick_Config(96000);
+// }
+
 void SetupClocks() {
-    // Setup clocks to use 8MHz HSE -> 96MHz sys clock + 48MHz for USB
-    FLASH_SetLatency(FLASH_Latency_3);
-    RCC_HSEConfig(RCC_HSE_ON);
-    RCC_WaitForHSEStartUp();
-    RCC_PLLConfig(
-        RCC_PLLSource_HSE, 
-        8,   // PLLM,
-        384, // PLLN
-        4,   // PLLP
-        8,   // PLLQ
-        2    // PLLR
-    );
-    RCC_PLLCmd(ENABLE);
-    while(RCC_GetFlagStatus(RCC_FLAG_PLLRDY));
-    RCC_HCLKConfig(RCC_SYSCLK_Div1);
-    RCC_PCLK1Config(RCC_HCLK_Div1);
-    RCC_PCLK2Config(RCC_HCLK_Div2);
-    RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);
-    RCC_48MHzClockSourceConfig(RCC_CK48CLKSOURCE_PLLQ);
+    Rcc::enableExternalClock();	// 8MHz
+    const Rcc::PllFactors pllFactors{
+        .pllMul = 8,
+        .pllPrediv = 1
+    };
+    Rcc::enablePll(Rcc::PllSource::ExternalClock, pllFactors);
+    // set flash latency for 72MHz
+    Rcc::setFlashLatency<Frequency>();
+    // switch system clock to PLL output
+    Rcc::enableSystemClock(Rcc::SystemClockSource::Pll);
+    Rcc::setAhbPrescaler(Rcc::AhbPrescaler::Div1);
+    // APB1 has max. 36MHz
+    Rcc::setApb1Prescaler(Rcc::Apb1Prescaler::Div2);
+    Rcc::setApb2Prescaler(Rcc::Apb2Prescaler::Div1);
+    // update frequencies for busy-wait delay functions
+    Rcc::updateCoreFrequency<Frequency>();
 
     /* SysTick end of count event each ms */
     SysTick_Config(96000);
 }
+
 
 extern "C" void SysTick_Handler(void)
 {

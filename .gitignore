@@ -3,6 +3,7 @@
 *.a
 .gdb_history
 build/
+modm/
 
 # Cmake outputs
 test/PurpleDropTest
