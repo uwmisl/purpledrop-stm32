@@ -15,22 +15,30 @@ include(./modm/repo.cmake)
 
 project(purpledrop)
 
-file(GLOB APP_SOURCE_FILES 
-    src/*.c
-    src/*.cpp
-    src/usb/*.c
-    src/app.*.cpp)
-
-list(APPEND SOURCE_FILES ${APP_SOURCE_FILES})
-
 set(PERIPH lib/STM32F4xx_StdPeriph_Driver)
 set(USB lib/STM32_USB_OTG_Driver)
 set(USBD lib/STM32_USB_Device_Library)
 
-add_definitions(-DUSE_USB_OTG_FS)
+file(GLOB APP_SOURCE_FILES 
+    src/*.c
+    src/*.cpp
+    src/usb/*.c
+    src/usb/*.cpp
+    src/app/*.cpp
+    src/driver/*.c
+    ${USB}/src/usb_core.c
+	${USB}/src/usb_dcd_int.c
+	${USB}/src/usb_dcd.c
+	${USBD}/Class/cdc/src/usbd_cdc_core_loopback.c
+	${USBD}/Core/src/usbd_core.c
+	${USBD}/Core/src/usbd_ioreq.c
+	${USBD}/Core/src/usbd_req.c)
+
+list(APPEND SOURCE_FILES ${APP_SOURCE_FILES})
+
+add_definitions(-DUSE_USB_OTG_FS -DSTM32F413_423xx)
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
-    modm/src/modm/
     src
     src/driver
     src/usb

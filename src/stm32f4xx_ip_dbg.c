@@ -47,10 +47,8 @@ ADC_TypeDef         * ADC3_DBG;
 CAN_TypeDef         * CAN1_DBG;
 CAN_TypeDef         * CAN2_DBG;
 CRC_TypeDef         * CRC_DBG;
-CRYP_TypeDef        * CRYP_DBG;
 DAC_TypeDef         * DAC_DBG;
 DBGMCU_TypeDef      * DBGMCU_DBG;
-DCMI_TypeDef        * DCMI_DBG;
 DMA_TypeDef         * DMA1_DBG;
 DMA_Stream_TypeDef  * DMA1_Stream0_DBG;
 DMA_Stream_TypeDef  * DMA1_Stream1_DBG;
@@ -70,13 +68,9 @@ DMA_Stream_TypeDef  * DMA2_Stream5_DBG;
 DMA_Stream_TypeDef  * DMA2_Stream6_DBG;
 DMA_Stream_TypeDef  * DMA2_Stream7_DBG;
 EXTI_TypeDef        * EXTI_DBG;
-ETH_TypeDef         * ETH_DBG;
 FLASH_TypeDef       * FLASH_DBG;
 FSMC_Bank1_TypeDef  * FSMC_Bank1_DBG;
 FSMC_Bank1E_TypeDef * FSMC_Bank1E_DBG;
-FSMC_Bank2_TypeDef  * FSMC_Bank2_DBG;
-FSMC_Bank3_TypeDef  * FSMC_Bank3_DBG;
-FSMC_Bank4_TypeDef  * FSMC_Bank4_DBG;
 GPIO_TypeDef        * GPIOA_DBG;
 GPIO_TypeDef        * GPIOB_DBG;
 GPIO_TypeDef        * GPIOC_DBG;
@@ -86,7 +80,6 @@ GPIO_TypeDef        * GPIOF_DBG;
 GPIO_TypeDef        * GPIOG_DBG;
 GPIO_TypeDef        * GPIOH_DBG;
 GPIO_TypeDef        * GPIOI_DBG;
-HASH_TypeDef        * HASH_DBG;
 I2C_TypeDef         * I2C1_DBG;
 I2C_TypeDef         * I2C2_DBG;
 I2C_TypeDef         * I2C3_DBG;
@@ -150,8 +143,6 @@ void IP_Debug(void)
 /************************************* ADC ************************************/
   ADC_DBG  = (ADC_Common_TypeDef *)  ADC_BASE;
   ADC1_DBG = (ADC_TypeDef *)  ADC1_BASE;
-  ADC2_DBG = (ADC_TypeDef *)  ADC2_BASE;
-  ADC3_DBG = (ADC_TypeDef *)  ADC3_BASE;
 
 /************************************* CAN ************************************/
   CAN1_DBG = (CAN_TypeDef *)  CAN1_BASE;
@@ -160,17 +151,12 @@ void IP_Debug(void)
 /************************************* CRC ************************************/  
   CRC_DBG = (CRC_TypeDef *)  CRC_BASE;
 
-/************************************* CRYP ***********************************/
-  CRYP_DBG = (CRYP_TypeDef *)  CRYP_BASE;
 
 /************************************* DAC ************************************/
   DAC_DBG = (DAC_TypeDef *)  DAC_BASE;
 
 /************************************* DBGMCU *********************************/
 	DBGMCU_DBG = (DBGMCU_TypeDef *)  DBGMCU_BASE;
-
-/************************************* DCMI ***********************************/
-  DCMI_DBG = (DCMI_TypeDef *)  DCMI_BASE;
 
 /************************************* DMA ************************************/
   DMA1_DBG = (DMA_TypeDef *)  DMA1_BASE;
@@ -195,18 +181,12 @@ void IP_Debug(void)
 /************************************* EXTI ***********************************/
   EXTI_DBG = (EXTI_TypeDef *)  EXTI_BASE;
 
-/************************************* ETH ************************************/
-  ETH_DBG = (ETH_TypeDef *)  ETH_BASE;
-
 /************************************* FLASH **********************************/
   FLASH_DBG = (FLASH_TypeDef *)  FLASH_R_BASE;
 
 /************************************* FSMC ***********************************/
   FSMC_Bank1_DBG  = (FSMC_Bank1_TypeDef *)  FSMC_Bank1_R_BASE;
   FSMC_Bank1E_DBG = (FSMC_Bank1E_TypeDef *)  FSMC_Bank1E_R_BASE;
-  FSMC_Bank2_DBG  = (FSMC_Bank2_TypeDef *)  FSMC_Bank2_R_BASE;
-  FSMC_Bank3_DBG  = (FSMC_Bank3_TypeDef *)  FSMC_Bank3_R_BASE;
-  FSMC_Bank4_DBG  = (FSMC_Bank4_TypeDef *)  FSMC_Bank4_R_BASE;
 
 /************************************* GPIO ***********************************/
   GPIOA_DBG = (GPIO_TypeDef *)  GPIOA_BASE;
@@ -217,10 +197,6 @@ void IP_Debug(void)
   GPIOF_DBG = (GPIO_TypeDef *)  GPIOF_BASE;
   GPIOG_DBG = (GPIO_TypeDef *)  GPIOG_BASE;
   GPIOH_DBG = (GPIO_TypeDef *)  GPIOH_BASE;
-  GPIOI_DBG = (GPIO_TypeDef *)  GPIOI_BASE;
-
-/************************************* HASH ***********************************/
-  HASH_DBG = (HASH_TypeDef *)  HASH_BASE;
 
 /************************************* I2C ************************************/
   I2C1_DBG = (I2C_TypeDef *)  I2C1_BASE;

@@ -2,8 +2,8 @@
 * Define interrupt vectors
 */
 
-#include "usbd_cdc_core_loopback.h"
 #include "stm32f4xx.h"
+#include "usbd_cdc_core_loopback.h"
 
 void NMI_Handler(void)
 {

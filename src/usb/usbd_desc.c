@@ -58,6 +58,7 @@ static void Get_SerialNum(void);
 
 uint8_t *USBD_USR_DeviceDescriptor(uint8_t speed, uint16_t * length)
 {
+  (void)speed;
   *length = sizeof(USBD_DeviceDesc);
   return (uint8_t *) USBD_DeviceDesc;
 }
@@ -65,13 +66,14 @@ uint8_t *USBD_USR_DeviceDescriptor(uint8_t speed, uint16_t * length)
 
 uint8_t *USBD_USR_LangIDStrDescriptor(uint8_t speed, uint16_t * length)
 {
+  (void)speed;
   *length = sizeof(USBD_LangIDDesc);
   return (uint8_t *) USBD_LangIDDesc;
 }
 
 uint8_t *USBD_USR_ProductStrDescriptor(uint8_t speed, uint16_t * length)
 {
-  
+  (void)speed;
 
   USBD_GetString((uint8_t *) (uint8_t *) USBD_PRODUCT_STRING, USBD_StrDesc, length);
   
@@ -80,6 +82,7 @@ uint8_t *USBD_USR_ProductStrDescriptor(uint8_t speed, uint16_t * length)
 
 uint8_t *USBD_USR_ManufacturerStrDescriptor(uint8_t speed, uint16_t * length)
 {
+  (void)speed;
   USBD_GetString((uint8_t *) (uint8_t *) USBD_MANUFACTURER_STRING, USBD_StrDesc,
                  length);
   return USBD_StrDesc;
@@ -87,6 +90,7 @@ uint8_t *USBD_USR_ManufacturerStrDescriptor(uint8_t speed, uint16_t * length)
 
 uint8_t *USBD_USR_SerialStrDescriptor(uint8_t speed, uint16_t * length)
 {
+  (void)speed;
   *length = USB_SIZ_STRING_SERIAL;
 
   /* Update the serial number string descriptor with the data from the unique
@@ -98,12 +102,14 @@ uint8_t *USBD_USR_SerialStrDescriptor(uint8_t speed, uint16_t * length)
 
 uint8_t *USBD_USR_ConfigStrDescriptor(uint8_t speed, uint16_t * length)
 {
+  (void)speed;
   USBD_GetString((uint8_t *) (uint8_t *) USBD_CONFIGURATION_STRING, USBD_StrDesc, length);
   return USBD_StrDesc;
 }
 
 uint8_t *USBD_USR_InterfaceStrDescriptor(uint8_t speed, uint16_t * length)
 {
+  (void)speed;
   USBD_GetString((uint8_t *) (uint8_t *) USBD_INTERFACE_STRING, USBD_StrDesc, length);
   return USBD_StrDesc;
 }
