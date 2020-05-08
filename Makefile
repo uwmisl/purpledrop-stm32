@@ -1,70 +1,109 @@
-# Copyright (c) 2018, Sergiy Yevtushenko
-# Copyright (c) 2018-2019, Niklas Hauser
-#
-# This file is part of the modm project.
-#
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+CC = arm-none-eabi-gcc
+LD = arm-none-eabi-g++
+AR = arm-non-eabi-ar
+OBJCOPY = arm-none-eabi-objcopy
 
-BUILD_DIR = build/purpledrop-stm32
+OBJDIR = build
+PERIPH = lib/STM32F4xx_StdPeriph_Driver
+USB = lib/STM32_USB_OTG_Driver
+USBD = lib/STM32_USB_Device_Library
 
-CMAKE_GENERATOR = Unix Makefiles
-CMAKE_FLAGS = -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=ON -DCMAKE_RULE_MESSAGES:BOOL=ON -DCMAKE_VERBOSE_MAKEFILE:BOOL=OFF
+TARGET_NAME = purpledrop
+ELF = $(OBJDIR)/$(TARGET_NAME).elf
+HEX = $(OBJDIR)/$(TARGET_NAME).hex
+BIN = $(OBJDIR)/$(TARGET_NAME).bin
 
-.PHONY: cmake build clean cleanall program program-bmp debug debug-bmp debug-coredump log-itm
 
-.DEFAULT_GOAL := all
+SOURCES += \
+	$(USB)/src/usb_core.c \
+	$(USB)/src/usb_dcd_int.c \
+	$(USB)/src/usb_dcd.c \
+	$(USBD)/Class/cdc/src/usbd_cdc_core_loopback.c \
+	$(USBD)/Core/src/usbd_core.c \
+	$(USBD)/Core/src/usbd_ioreq.c \
+	$(USBD)/Core/src/usbd_req.c
+SOURCES += \
+	$(PERIPH)/src/misc.c \
+	$(PERIPH)/src/stm32f4xx_dma.c \
+	$(PERIPH)/src/stm32f4xx_exti.c \
+	$(PERIPH)/src/stm32f4xx_gpio.c \
+	$(PERIPH)/src/stm32f4xx_flash.c \
+	$(PERIPH)/src/stm32f4xx_rcc.c \
+	$(PERIPH)/src/stm32f4xx_spi.c \
+	$(PERIPH)/src/stm32f4xx_syscfg.c \
+	$(PERIPH)/src/stm32f4xx_tim.c 
+SOURCES += \
+	src/main.cpp \
+	src/stm32f4xx_ip_dbg.c \
+	src/stm32f4xx_it.c \
+	src/syscalls.c \
+	src/system_stm32f4xx.c \
+	src/startup_stm32f413_423xx.s \
+	src/usb/usb_bsp.c \
+	src/usb/usb_vcp.cpp \
+	src/usb/usbd_desc.c \
+	
 
-### Targets
-all: cmake build
+INCLUDES += \
+	-Isrc \
+	-Isrc/app \
+	-Isrc/driver \
+	-Isrc/usb \
+	-I$(PERIPH)/inc \
+	-I$(USB)/inc \
+	-I$(USBD)/Core/inc \
+	-I$(USBD)/Class/cdc/inc \
+	-Ilib/CMSIS/Include \
+	-Ilib/CMSIS/Device/ST/STM32F4xx/Include
 
-cmake:
-	@cmake -E make_directory $(BUILD_DIR)/cmake-build-debug
-	@cmake -E make_directory $(BUILD_DIR)/cmake-build-release
-	@cd $(BUILD_DIR)/cmake-build-debug && cmake $(CMAKE_FLAGS) -DCMAKE_BUILD_TYPE=Debug -G "$(CMAKE_GENERATOR)" /Users/jeff/dev/misl/purpledrop-stm32
-	@cd $(BUILD_DIR)/cmake-build-release && cmake $(CMAKE_FLAGS) -DCMAKE_BUILD_TYPE=Release -G "$(CMAKE_GENERATOR)" /Users/jeff/dev/misl/purpledrop-stm32
+
+OBJECTS = $(addprefix $(OBJDIR)/, $(addsuffix .o, $(basename $(SOURCES))))
+
+LDSCRIPT = memory.ld
+LDFLAGS += -T$(LDSCRIPT) --specs=nosys.specs -mthumb -mcpu=cortex-m4 -mfloat-abi=hard 
+
+DEFINES = -DSTM32F413_423xx \
+	-DUSE_USB_OTG_FS \
+	-DUSE_STDPERIPH_DRIVER \
+	-DHSE_VALUE=8000000
+
+CFLAGS  = -O0 -g -Wall -I.\
+	-mcpu=cortex-m4 -mthumb \
+	-mfpu=fpv4-sp-d16 -mfloat-abi=hard \
+	--specs=nosys.specs \
+	$(DEFINES) \
+	$(INCLUDES) 
+
+CPPFLAGS = $(CFLAGS) -std=c++14
+
+$(BIN): $(ELF)
+	$(OBJCOPY) -O binary $< $@
+
+$(HEX): $(ELF)
+	$(OBJCOPY) -O ihex $< $@
+
+$(ELF): $(OBJECTS)
+	$(LD) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS)
+
+$(OBJDIR)/%.o: %.c $(DEPS)
+	mkdir -p $(dir $@)
+	$(CC) -MMD -c $(CFLAGS) $< -o $@
+
+$(OBJDIR)/%.o: %.cpp $(DEPS)
+	mkdir -p $(dir $@)
+	$(CC) -MMD -c $(CFLAGS) $< -o $@
+
+$(OBJDIR)/%.o: %.s
+	mkdir -p $(dir $@)
+	$(CC) -c $(CFLAGS) $< -o $@
+
+
+-include $(shell find $(OBJDIR)/ -type f -name '*.d')
+
+all: $(BIN) $(HEX)
+
+gdb: $(ELF)
+	arm-none-eabi-gdb -q -x openocd.gdb
 
 clean:
-	@cmake --build $(BUILD_DIR)/cmake-build-release --target clean
-	@cmake --build $(BUILD_DIR)/cmake-build-debug --target clean
-
-cleanall:
-	@rm -rf $(BUILD_DIR)/cmake-build-release
-	@rm -rf $(BUILD_DIR)/cmake-build-debug
-
-profile?=release
-build:
-	@cmake --build $(BUILD_DIR)/cmake-build-$(profile)
-
-port?=auto
-ELF_FILE=$(BUILD_DIR)/cmake-build-$(profile)/purpledrop.elf
-MEMORIES = "[{'name': 'flash', 'access': 'rx', 'start': 134217728, 'size': 1572864}, {'name': 'ccm', 'access': 'rw', 'start': 268435456, 'size': 65536}, {'name': 'sram1', 'access': 'rwx', 'start': 536870912, 'size': 327680}, {'name': 'backup', 'access': 'rwx', 'start': 1073889280, 'size': 4096}]"
-size: build
-	@python3 modm/modm_tools/size.py $(ELF_FILE) $(MEMORIES)
-
-program: build
-	@python3 modm/modm_tools/openocd.py -f modm/openocd.cfg $(ELF_FILE)
-
-program-bmp: build
-	@python3 modm/modm_tools/bmp.py -p $(port) $(ELF_FILE)
-
-ui?=tui
-debug: build
-	@python3 modm/modm_tools/gdb.py -x modm/gdbinit -x modm/openocd_gdbinit \
-			$(ELF_FILE) -ui=$(ui) \
-			openocd -f modm/openocd.cfg
-
-debug-bmp: build
-	@python3 modm/modm_tools/bmp.py -x modm/gdbinit \
-			$(ELF_FILE) -ui=$(ui) \
-			bmp -p $(port)
-
-debug-coredump: build
-	@python3 modm/modm_tools/gdb.py -x modm/gdbinit \
-			$(ELF_FILE) -ui=$(ui) \
-			crashdebug --binary-path modm/ext/crashcatcher/bins
-
-fcpu?=0
-log-itm:
-	@python3 modm/modm_tools/log.py itm openocd -f modm/openocd.cfg -fcpu $(fcpu)
+	rm -rf build

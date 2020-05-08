@@ -131,7 +131,7 @@ static uint8_t  *USBD_cdc_GetOtherCfgDesc (uint8_t speed, uint16_t *length);
   * @{
   */ 
 extern CDC_IF_Prop_TypeDef  APP_FOPS;
-extern uint8_t USBD_DeviceDesc   [USB_SIZ_DEVICE_DESC];
+//extern uint8_t USBD_DeviceDesc   [USB_SIZ_DEVICE_DESC];
 
 #ifdef USB_OTG_HS_INTERNAL_DMA_ENABLED
   #if defined ( __ICCARM__ ) /*!< IAR Compiler */
@@ -402,6 +402,7 @@ __ALIGN_BEGIN uint8_t usbd_cdc_OtherCfgDesc[USB_CDC_CONFIG_DESC_SIZ]  __ALIGN_EN
 uint8_t  usbd_cdc_Init (void  *pdev, 
                                uint8_t cfgidx)
 {
+  (void)cfgidx;
   uint8_t *pbuf;
 
   /* Open EP IN */
@@ -439,6 +440,7 @@ uint8_t  usbd_cdc_Init (void  *pdev,
 uint8_t  usbd_cdc_DeInit (void  *pdev, 
                                  uint8_t cfgidx)
 {
+  (void)cfgidx;
   /* Open EP IN */
   DCD_EP_Close(pdev,
               CDC_IN_EP);
@@ -536,6 +538,7 @@ uint8_t  usbd_cdc_Setup (void  *pdev,
   */
 uint8_t  usbd_cdc_EP0_RxReady (void  *pdev)
 { 
+  (void)pdev;
   return USBD_OK;
 }
 
@@ -549,6 +552,8 @@ uint8_t  usbd_cdc_EP0_RxReady (void  *pdev)
   */
 uint8_t  usbd_cdc_DataIn (void *pdev, uint8_t epnum)
 {
+  (void)pdev;
+  (void)epnum;
   /* inform application layer that data was sent */ 
   APP_FOPS.pIf_DataTx();  
   return USBD_OK;

@@ -366,13 +366,14 @@ USBD_Status  USBD_StdEPReq (USB_OTG_CORE_HANDLE  *pdev, USB_SETUP_REQ  *req)
 static void USBD_GetDescriptor(USB_OTG_CORE_HANDLE  *pdev,
                                USB_SETUP_REQ *req)
 {
+  (void)pdev;
   uint16_t len;
   uint8_t *pbuf;
   len = req->wLength ;
 
   switch (req->wValue >> 8)
   {
-#if (USBD_LPM_ENABLED == 1)
+#if (defined(USBD_LPM_ENABLED) && USBD_LPM_ENABLED == 1)
   case USB_DESC_TYPE_BOS:
     pbuf = pdev->pDesc->GetBOSDescriptor(pdev->dev_speed, &len);
     break;
@@ -806,7 +807,7 @@ void USBD_ParseSetupRequest( USB_OTG_CORE_HANDLE  *pdev,
 void USBD_CtlError( USB_OTG_CORE_HANDLE  *pdev,
                             USB_SETUP_REQ *req)
 {
-
+  (void)req;
   DCD_EP_Stall(pdev , 0x80);
   DCD_EP_Stall(pdev , 0);
   USB_OTG_EP0_OutStart(pdev);

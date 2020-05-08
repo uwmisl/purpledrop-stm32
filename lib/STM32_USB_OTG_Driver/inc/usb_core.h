@@ -190,7 +190,7 @@ typedef struct _Device_TypeDef
   uint8_t  *(*GetConfigurationStrDescriptor)( uint8_t speed , uint16_t *length);  
   uint8_t  *(*GetInterfaceStrDescriptor)( uint8_t speed , uint16_t *length); 
 
-#if (USBD_LPM_ENABLED == 1)
+#if (defined(USBD_LPM_ENABLED) && USBD_LPM_ENABLED == 1)
   uint8_t  *(*GetBOSDescriptor)( uint8_t speed , uint16_t *length); 
 #endif   
 } USBD_DEVICE, *pUSBD_DEVICE;
@@ -366,7 +366,6 @@ void         USB_OTG_StopHost        (USB_OTG_CORE_HANDLE *pdev);
 #ifdef USE_DEVICE_MODE
 USB_OTG_STS  USB_OTG_CoreInitDev         (USB_OTG_CORE_HANDLE *pdev);
 USB_OTG_STS  USB_OTG_EnableDevInt        (USB_OTG_CORE_HANDLE *pdev);
-uint32_t     USB_OTG_ReadDevAllInEPItr           (USB_OTG_CORE_HANDLE *pdev);
 enum USB_OTG_SPEED USB_OTG_GetDeviceSpeed (USB_OTG_CORE_HANDLE *pdev);
 USB_OTG_STS  USB_OTG_EP0Activate (USB_OTG_CORE_HANDLE *pdev);
 USB_OTG_STS  USB_OTG_EPActivate  (USB_OTG_CORE_HANDLE *pdev , USB_OTG_EP *ep);
