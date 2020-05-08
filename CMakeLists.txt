@@ -27,8 +27,12 @@ set(PERIPH lib/STM32F4xx_StdPeriph_Driver)
 set(USB lib/STM32_USB_OTG_Driver)
 set(USBD lib/STM32_USB_Device_Library)
 
+add_definitions(-DUSE_USB_OTG_FS)
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
+    modm/src/modm/
+    src
+    src/driver
     src/usb
     src/app
     ${PERIPH}/inc
