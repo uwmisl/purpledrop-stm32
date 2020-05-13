@@ -588,6 +588,7 @@ uint8_t  usbd_cdc_DataOut (void *pdev, uint8_t epnum)
   */
 static uint8_t  *USBD_cdc_GetCfgDesc (uint8_t speed, uint16_t *length)
 {
+  (void)speed;
   *length = sizeof (usbd_cdc_CfgDesc);
   return usbd_cdc_CfgDesc;
 }
