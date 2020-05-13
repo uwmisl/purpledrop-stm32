@@ -12,6 +12,8 @@ extern "C" {
 #include <modm/architecture/interface/clock.hpp>
 
 #include "usb_vcp.hpp"
+#include "HV507.hpp"
+#include "Max31865.hpp"
 #include "CircularBuffer.hpp"
 
 using namespace modm::platform;
@@ -19,6 +21,13 @@ using namespace modm::literals;
 
 StaticCircularBuffer<uint8_t, 512> USBTxBuffer;
 StaticCircularBuffer<uint8_t, 512> USBRxBuffer;
+
+Max31865<SpiMaster2, GpioB13> Rtd0;
+Max31865<SpiMaster2, GpioB12> Rtd1;
+Max31865<SpiMaster2, GpioB10> Rtd2;
+Max31865<SpiMaster2, GpioB1> Rtd3;
+
+HV507 HvControl;
 
 struct SystemClock {
 	static constexpr uint32_t Frequency = 96_MHz;
@@ -94,6 +103,9 @@ int main() {
     SystemClock::enable();
 	SysTickTimer::initialize<SystemClock>();
 
+    SpiMaster3::connect<GpioC10::Sck, GpioC12::Mosi, GpioUnused::Miso>();
+    SpiMaster3::initialize<SystemClock, 6000000>();
+
     printf("Hello world\n");
 
     VCP_Setup(&USBRxBuffer, &USBTxBuffer);
@@ -101,16 +113,20 @@ int main() {
     static const uint32_t UPDATE_PERIOD = 20;
     uint32_t NextUpdateTime = UPDATE_PERIOD;
     uint8_t rxBuf[64];
+    uint8_t txBuf[8];
     while(1) {
-
+        int rdCount = 0;
+        while(!USBRxBuffer.empty()) {
+            rxBuf[rdCount++] = USBRxBuffer.pop();
+        }
+        if(rdCount > 0) {
+            printf("Sending data\n");
+            VCP_Send(rxBuf, rdCount);
+        }
         if(modm::chrono::milli_clock::now().time_since_epoch().count() >= NextUpdateTime) {
             NextUpdateTime += UPDATE_PERIOD;
 
-            int rdCount = 0;
-            while(!USBRxBuffer.empty()) {
-                rxBuf[rdCount++] = USBRxBuffer.pop();
-            }
-            VCP_Send(rxBuf, rdCount);
+            SpiMaster3::transferBlocking(txBuf, 0, 8);
             // float cur_rpm = RpmSense.value() * 60 / 7;
             // uint32_t pulse_width = Motor.update(cur_rpm);
             // if(ReportEnable) {

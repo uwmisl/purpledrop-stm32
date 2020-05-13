@@ -1,6 +1,6 @@
 target extended-remote :3333
 
-file ./build/purpledrop-stm32/cmake-build-release/purpledrop.elf
+file ./build/cmake-build-release/purpledrop.elf
 
 # print demangled symbols
 set print asm-demangle on

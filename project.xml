@@ -18,7 +18,8 @@
     <module>modm:platform:core</module>
     <module>modm:platform:heap</module>
     <module>modm:build:cmake</module>
-    <module>modm:platform:spi:1</module>
+    <module>modm:platform:spi:2</module>
+    <module>modm:platform:spi:3</module>
     <module>modm:platform:gpio</module>
   </modules>
 </library>
