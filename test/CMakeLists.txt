@@ -10,6 +10,7 @@ add_subdirectory(gtest-1.10.0)
 set(BINARY PurpleDropTest)
 
 set(TEST_SOURCES
+    EventBroker-test.cpp
     MessageFramer-test.cpp
     Messages-test.cpp
 )
