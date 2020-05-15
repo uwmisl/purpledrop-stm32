@@ -97,7 +97,9 @@ private:
 };
 
 struct Serializer{
-    Serializer() : mStarted(false) {}
+    Serializer() : Serializer(nullptr) {}
+
+    Serializer(IProducer<uint8_t> *sink) : mStarted(false), mSink(sink)  {}
 
     void setSink(IProducer<uint8_t>  *sink) { mSink = sink; };
 
@@ -124,7 +126,7 @@ struct Serializer{
     template<typename T>
     void push(T value, bool last = false) {
         uint8_t *p = (uint8_t*)&value;
-        for(int i=0; i<sizeof(value); i++) {
+        for(uint32_t i=0; i<sizeof(value); i++) {
             push(p[i]);
         }
         if(last) {

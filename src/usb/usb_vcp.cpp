@@ -17,7 +17,7 @@ extern "C" {
 #define RX_BUF_SIZE CDC_DATA_MAX_PACKET_SIZE
 #define TX_BUF_SIZE CDC_DATA_MAX_PACKET_SIZE
 __ALIGN_BEGIN USB_OTG_CORE_HANDLE USB_OTG_dev __ALIGN_END;
-static __IO bool TxActiveFlag = 0;
+static volatile bool TxActiveFlag = 0;
 static uint8_t Rxbuffer[RX_BUF_SIZE];
 static uint8_t Txbuffer[TX_BUF_SIZE];
 
@@ -35,8 +35,14 @@ void FillTx() {
     }
 }
 
+void VCP_FlushTx() {
+    if(!TxActiveFlag) {
+        FillTx();
+    }
+}
+
 /* send data function */
-uint32_t VCP_Send(uint8_t * pbuf, uint32_t buf_len)
+uint32_t VCP_Send(uint8_t * pbuf, uint32_t buf_len, bool flush)
 {
     uint32_t tx_count = 0;
     while(tx_count < buf_len) {
@@ -46,12 +52,11 @@ uint32_t VCP_Send(uint8_t * pbuf, uint32_t buf_len)
         tx_count++;
     }
 
-    if(!TxActiveFlag) {
-        FillTx();
+    if(flush) {
+        VCP_FlushTx();
     }
     return tx_count;
 }
-
 
 void VCP_Setup(IProducer<uint8_t> *rx_queue, CircularBuffer<uint8_t> *tx_queue)
 {

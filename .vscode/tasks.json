@@ -4,21 +4,31 @@
     "version": "2.0.0",
     "tasks": [
         {
-            /*
-             * This is the default cargo build task,
-             * but we need to provide a label for it,
-             * so we can invoke it from the debug launcher.
-             */
             "label": "build",
-            "type": "cargo",
-            "subcommand": "build",
+            "type": "shell",
+            "command": "make",
             "problemMatcher": [
-                "$rustc"
+                "$gcc"
             ],
             "group": {
                 "kind": "build",
                 "isDefault": true
             }
         },
+        {
+            "label": "build tests",
+            "type": "shell",
+            "command": "make",
+            "options": {
+                "cwd": "${workspaceFolder}/test"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        }
     ]
 }

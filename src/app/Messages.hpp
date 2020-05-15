@@ -32,6 +32,8 @@ struct ElectrodeEnableMsg {
     static const uint8_t ID = 0;
 
     static int predictSize(uint8_t *buf, uint32_t length) {
+        (void)buf;
+        (void)length;
         return 16;
     }
     
@@ -41,9 +43,9 @@ struct ElectrodeEnableMsg {
 
 struct BulkCapacitanceMsg {
     static const uint8_t ID = 2;
-    static const uint8_t MAX_VALUES = 64;
+    static const uint8_t MAX_VALUES = 16;
 
-    BulkCapacitanceMsg() : count(0), start_index(0) {}
+    BulkCapacitanceMsg() : start_index(0), count(0) {}
 
     static int predictSize(uint8_t *buf, uint32_t length) {
         if(length < 3) {
@@ -54,7 +56,7 @@ struct BulkCapacitanceMsg {
     }
 
     bool fill(uint8_t *buf, uint32_t length) {
-        if(length == 0 || length != predictSize(buf, length)) {
+        if(length == 0 || (int)length != predictSize(buf, length)) {
             return false;
         }
 
@@ -85,6 +87,38 @@ struct BulkCapacitanceMsg {
     uint16_t values[MAX_VALUES];
 };
 
+struct CommandAckMsg {
+    static const uint8_t ID = 4;
+    static const uint8_t MAX_VALUES = 64;
+
+    CommandAckMsg() : acked_id(0) {}
+
+    CommandAckMsg(uint8_t id) : acked_id(id) {}
+
+    static int predictSize(uint8_t *buf, uint32_t length) {
+        (void)buf;
+        (void)length;
+        return 2;
+    }
+
+    bool fill(uint8_t *buf, uint32_t length) {
+        if(length == 0 || (int)length != predictSize(buf, length)) {
+            return false;
+        }
+
+        acked_id = buf[1];
+        return true;
+    }
+
+    void serialize(Serializer &ser) {
+        ser.push(ID);
+        ser.push(acked_id);
+        ser.finish();
+    }
+
+    uint8_t acked_id;
+};
+
 // Message sent to device to set (writeFlag = 1) or request (writeFlag = 0)
 // the value of a device. The same message is returned from the device in 
 // response with the new value -- response is sent for both writes and 
@@ -95,23 +129,23 @@ struct ParameterMsg {
     static const uint8_t ID = 6;
 
     static int predictSize(uint8_t *buf, uint32_t length) {
+        (void)buf;
+        (void)length;
         return 10;
     }
 
     void fill(uint8_t *buf, uint32_t length) {
+        (void)length;
         paramIdx = *((uint32_t*)&buf[1]);
         paramValue.s32 = *((int32_t*)&buf[5]);
         writeFlag = buf[9];
     }
 
     void serialize(Serializer &s) {
-        uint8_t *p;
         s.push(ID);
         s.push(paramIdx);
         s.push(paramValue.s32);
         s.push(writeFlag);
-
-        p = (uint8_t *)&paramIdx;
         
         s.finish();
     }
@@ -124,6 +158,8 @@ struct ParameterMsg {
     // If set, this message is setting a param. If clear, this is requesting the current value.
     uint8_t writeFlag;
 };
+
+
 
 #define PREDICT(msgname) case msgname::ID: \
     return msgname::predictSize(buf, length);

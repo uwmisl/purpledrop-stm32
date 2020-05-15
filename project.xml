@@ -1,7 +1,7 @@
 <library>
   <repositories>
     <repository>
-      <path>../modm/repo.lb</path>
+      <path>ext/modm/repo.lb</path>
     </repository>
   </repositories>
   <options>
@@ -9,11 +9,15 @@
     <option name="modm:build:project.name">purpledrop</option>
     <option name="modm:build:cmake:include_cmakelists">false</option>
     <option name="modm:build:cmake:include_makefile">false</option>
+    <option name="modm:stdc++:rtti">true</option>
   </options>
   <modules>
+    <module>modm:architecture:atomic</module>
+    <module>modm:architecture:delay</module>
     <module>modm:cmsis:core</module>
     <module>modm:cmsis:device</module>
     <module>modm:docs</module>
+    <module>modm:platform:adc:1</module>
     <module>modm:platform:clock</module>
     <module>modm:platform:core</module>
     <module>modm:platform:heap</module>
