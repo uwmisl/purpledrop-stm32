@@ -1,26 +1,54 @@
 #pragma once
 
+#include <functional>
+
 /** Simple event publishing framework
- * 
+ *
  * All allocation is done at the subscriber end, so that it is possible to the
- * library with no heap allocation. 
- * 
- * An event may be any class inheriting from EventEx::Event. 
+ * library with no heap allocation.
+ *
+ * An event may be any class inheriting from EventEx::Event.
  */
 namespace EventEx {
 
 struct Event {
 };
 
-struct EventRegistrationList;
+struct Registerable {
+    struct Owner {
+        virtual void remove(Registerable *) = 0;
+    };
 
+    Registerable() : mOwner(nullptr) {}
 
-/** An event handler serves as the target for an event callback. It can be 
- * derived and the functor overridden to define custom event handlers. 
- * Alternatively, consider using EventHandlerFunction and a lambda. 
+    ~Registerable() {
+        unregister();
+    }
+
+    //void * handler() { return mEventHandler; }
+
+    void unregister() {
+        if(mOwner) {
+            mOwner->remove(this);
+            mOwner = nullptr;
+        }
+    }
+
+protected:
+    Registerable *mNext;
+    Owner *mOwner;
+    std::type_info *mEventTypeId;
+
+    friend class RegistrationList;
+    friend class EventBroker;
+};
+
+/** An event handler serves as the targetnullptr for an event callback. It can be
+ * derived and the functor overridden to define custom event handlers.
+ * Alternatively, consider using EventHandlerFunction and a lambda.
  */
 template <typename T>
-struct EventHandler {
+struct EventHandler : public Registerable {
     EventHandler() {
         static_assert(
             std::is_base_of<Event, T>::value,
@@ -38,35 +66,40 @@ private:
 
 };
 
-/** Utility class for creating an EventHandler from a lambda. 
- * 
- * For example, to create a handler that wires the event to a member method: 
- * 
+/** Utility class for creating an EventHandler from a lambda.
+ *
+ * For example, to create a handler that wires the event to a member method:
+ *
  *      EventHandlerFunction<SomeEvent> handler([&](SomeEvent &e) { this->HandleSomeEvent(e); })
- * 
+ *
  * As I understand it, creating std::functions *can* allocate but almost certainly
  * will not do so when only storing a single pointer (e.g. `this`) with the lambda,
  * even if this isn't strictly guaranteed by C++17.
  */
 template <typename T>
 struct EventHandlerFunction : public EventHandler<T> {
-    EventHandlerFunction(std::function<void(T &)> f) : EventHandler<T>(), mFunc(f) {}
+    EventHandlerFunction() {}
 
-    void operator()(T &event) { mFunc(event); }
+    EventHandlerFunction(std::function<void(T &)> f) : mFunc(f) {}
+
+    void setFunction(std::function<void(T &)> f) {
+        mFunc = f;
+    }
+
+    void operator()(T &event) override { mFunc(event); }
 
 private:
-    const std::function<void(T &)> mFunc;
+    std::function<void(T &)> mFunc;
 };
 
-
-struct EventRegistration {
+struct RegistrationList : public Registerable::Owner {
     struct iter {
-        iter(EventRegistration *p) : mItem(p) {}
+        iter(Registerable *p) : mItem(p) {}
 
-        EventRegistration & operator*() {
+        Registerable & operator*() {
             return *mItem;
         }
-        
+
         bool operator!=(const iter &rhs) { return mItem != rhs.mItem; }
 
         iter & operator++() {
@@ -80,67 +113,34 @@ struct EventRegistration {
         }
 
     private:
-        EventRegistration *mItem;
+        Registerable *mItem;
     };
 
-    struct Owner { 
-        virtual void remove(EventRegistration *) = 0;
-    };
+    RegistrationList() : mTop(nullptr) {}
 
-    template<typename T>
-    EventRegistration(EventHandler<T> *handler) : mEventHandler(handler), mOwner(NULL) {}
+    iter begin() { return iter(mTop); }
+    iter end() { return iter(nullptr); }
 
-    EventRegistration() : mEventHandler(NULL), mOwner(NULL) {}
+    void push_back(Registerable *r) {
+        r->mNext = nullptr;
 
-    ~EventRegistration() {
-        unregister();
-    }
-
-    void * handler() { return mEventHandler; }
-
-    void unregister() {
-        if(mOwner) {
-            mOwner->remove(this);
-            mOwner = NULL;
-        }
-    }
-
-private:
-    void * mEventHandler;
-    EventRegistration *mNext;
-    Owner *mOwner;
-    std::type_info *mEventTypeId;
-
-    friend class EventRegistrationList;
-    friend class EventBroker;
-};
-
-struct EventRegistrationList : public EventRegistration::Owner {
-    EventRegistrationList() : mTop(NULL) {}
-
-    EventRegistration::iter begin() { return EventRegistration::iter(mTop); }
-    EventRegistration::iter end() { return EventRegistration::iter(NULL); }
-
-    void push_back(EventRegistration *r) {
-        r->mNext = NULL;
-        
-        if(mTop == NULL) {
+        if(mTop == nullptr) {
             mTop = r;
         } else {
-            EventRegistration *p = mTop;
-            while(p->mNext != NULL) {
+            Registerable *p = mTop;
+            while(p->mNext != nullptr) {
                 p = p->mNext;
             }
             p->mNext = r;
         }
     }
 
-    void remove(EventRegistration *r) {
+    void remove(Registerable *r) {
         if(mTop == r) {
             mTop = r->mNext;
         } else {
-            EventRegistration *p = mTop;
-            while(p->mNext != r && p->mNext != NULL) {
+            Registerable *p = mTop;
+            while(p->mNext != r && p->mNext != nullptr) {
                 p = p->mNext;
             }
             if(p->mNext == r) {
@@ -150,7 +150,7 @@ struct EventRegistrationList : public EventRegistration::Owner {
     }
 
 private:
-    EventRegistration *mTop;
+    Registerable *mTop;
 };
 
 struct EventBroker {
@@ -165,25 +165,24 @@ struct EventBroker {
     void publish(T &event) {
         for(auto &handler : mEvents) {
             if(*handler.mEventTypeId == typeid(event)) {
-                static_cast<EventHandler<Event>*>(handler.handler())->dispatch(event);
+                static_cast<EventHandler<Event>*>(&handler)->dispatch(event);
             }
         }
     }
 
     template<typename T>
-    void registerHandler(EventRegistration *reg, EventHandler<T> *handler) {
-        reg->mOwner = &mEvents;
-        reg->mEventHandler = (void*)handler;
-        reg->mEventTypeId = const_cast<std::type_info*>(&typeid(T));
-        mEvents.push_back(reg);
+    void registerHandler(EventHandler<T> *handler) {
+        handler->mOwner = &mEvents;
+        handler->mEventTypeId = const_cast<std::type_info*>(&typeid(T));
+        mEvents.push_back(handler);
     }
 
-    void unregisterHandler(EventRegistration *reg) {
+    void unregisterHandler(Registerable *reg) {
         mEvents.remove(reg);
     }
 
 private:
-    EventRegistrationList mEvents;
+    RegistrationList mEvents;
 };
 
 } // namespace EventEx

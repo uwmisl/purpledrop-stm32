@@ -43,21 +43,19 @@ TEST_F(EventBrokerTest, dispatch_event_with_no_listeners) {
 
 TEST_F(EventBrokerTest, register_handler_object) {
     FlagHandler<TestEvent1> flag;
-    EventRegistration reg;
     TestEvent1 event;
 
-    broker.registerHandler(&reg, &flag);
+    broker.registerHandler(&flag);
     ASSERT_FALSE(flag.fired);
     broker.publish(event);
     ASSERT_TRUE(flag.fired);
 }
 
 TEST_F(EventBrokerTest, register_handler_function) {
-    EventRegistration reg;
     TestEvent1 event(42);
     uint32_t flag = 0;
     EventHandlerFunction<TestEvent1> handler([&](TestEvent1 &event) { flag = event.value; });
-    broker.registerHandler(&reg, &handler);
+    broker.registerHandler(&handler);
     broker.publish(event);
     ASSERT_EQ(flag, event.value);
 }
@@ -66,9 +64,8 @@ TEST_F(EventBrokerTest, out_of_scope_handler_unregisters) {
     TestEvent1 event(42);
     uint32_t flag = 0;
     {
-        EventRegistration reg;
         EventHandlerFunction<TestEvent1> handler([&](TestEvent1 &event) { flag = event.value; });
-        broker.registerHandler(&reg, &handler);
+        broker.registerHandler(&handler);
     }
     broker.publish(event);
     ASSERT_EQ(flag, 0);
@@ -78,13 +75,12 @@ TEST_F(EventBrokerTest, multiple_events) {
     TestEvent1 event1(1);
     TestEvent2 event2(2);
     uint32_t flag1 = 0, flag2 = 0, flag3 = 0;
-    EventRegistration reg1, reg2, reg3;
     EventHandlerFunction<TestEvent1> handler1([&](TestEvent1 &event) { flag1 = event.value; });
     EventHandlerFunction<TestEvent1> handler2([&](TestEvent1 &event) { flag2 = event.value; });
     EventHandlerFunction<TestEvent2> handler3([&](TestEvent2 &event) { flag3 = event.value; });
-    broker.registerHandler(&reg1, &handler1);
-    broker.registerHandler(&reg2, &handler2);
-    broker.registerHandler(&reg3, &handler3);
+    broker.registerHandler(&handler1);
+    broker.registerHandler(&handler2);
+    broker.registerHandler(&handler3);
     broker.publish(event1);
     broker.publish(event2);
     ASSERT_EQ(flag1, 1);
