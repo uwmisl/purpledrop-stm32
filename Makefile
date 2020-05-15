@@ -22,8 +22,8 @@ all: cmake build
 cmake:
 	@cmake -E make_directory $(BUILD_DIR)/cmake-build-debug
 	@cmake -E make_directory $(BUILD_DIR)/cmake-build-release
-	@cd $(BUILD_DIR)/cmake-build-debug && cmake $(CMAKE_FLAGS) -DCMAKE_BUILD_TYPE=Debug -G "$(CMAKE_GENERATOR)" /Users/jeff/dev/misl/purpledrop-stm32
-	@cd $(BUILD_DIR)/cmake-build-release && cmake $(CMAKE_FLAGS) -DCMAKE_BUILD_TYPE=Release -G "$(CMAKE_GENERATOR)" /Users/jeff/dev/misl/purpledrop-stm32
+	@cd $(BUILD_DIR)/cmake-build-debug && cmake $(CMAKE_FLAGS) -DCMAKE_BUILD_TYPE=Debug -G "$(CMAKE_GENERATOR)" ../..
+	@cd $(BUILD_DIR)/cmake-build-release && cmake $(CMAKE_FLAGS) -DCMAKE_BUILD_TYPE=Release -G "$(CMAKE_GENERATOR)" ../..
 
 clean:
 	@cmake --build $(BUILD_DIR)/cmake-build-release --target clean
