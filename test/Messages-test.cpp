@@ -6,28 +6,22 @@ struct MessagesTest : public ::testing::Test {
     void SetUp() {
         returnBuf = NULL;
         returnLength = 0;
-        framer.registerMessageCallback(
-            [](uint8_t *buf, uint32_t len) { 
-                returnBuf = buf; 
-                returnLength = len; 
-            }
-        );
         serializer.setSink(&fifo);
     }
 
     void parseData() {
         while(!fifo.empty()) {
-            framer.push(fifo.pop());
+            framer.push(fifo.pop(), returnBuf, returnLength);
         }
     }
     MessageFramer<Messages> framer;
     StaticCircularBuffer<uint8_t, 128> fifo;
     Serializer serializer;
     static uint8_t *returnBuf;
-    static uint32_t returnLength;
+    static uint16_t returnLength;
 };
 uint8_t *MessagesTest::returnBuf = NULL;
-uint32_t MessagesTest::returnLength = 0;
+uint16_t MessagesTest::returnLength = 0;
 
 TEST_F(MessagesTest, BulkCapacitanceRoundTrip) {
     BulkCapacitanceMsg msg;

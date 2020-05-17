@@ -29,58 +29,52 @@ struct Checksum {
     }
 };
 
-/* Parses framed messages to provide unescaped payloads 
+/* Parses framed messages to provide unescaped payloads
 */
 template<typename TParser, uint32_t MAX_SIZE = 256>
 struct MessageFramer {
-    typedef void (*CallbackFn)(uint8_t *msg, uint32_t length);
 
     MessageFramer() {
-        mCallback = NULL;
         mEscaping = false;
         mParsing = false;
         mCount = 0;
     }
 
-    void registerMessageCallback(CallbackFn cb) {
-        mCallback = cb;
-    }
-
-    void push(uint8_t b) {
-        printf("Got %d\n", b);
+    bool push(uint8_t b, uint8_t *&msg, uint16_t &length) {
         if(mEscaping) {
             b = b ^ 0x20;
             mEscaping = false;
         } else if(b == 0x7d) {
             mEscaping = true;
-            return;
+            return false;
         } else if(b == 0x7e) {
             // start of frame
             reset();
             mParsing = true;
-            return;
+            return false;
         }
 
         mBuf[mCount] = b;
         mCount++;
 
         int expected_size = TParser::predictSize(mBuf, mCount);
-        printf("Got %d, Size %d, pred: %d\n", b, mCount, expected_size);
         if(expected_size == -1) {
             // It's not a valid message
             reset();
-            return;
         } else if(expected_size > 0 && mCount >= expected_size + 2) {
             Checksum calc = Checksum::compute_over(mBuf, mCount - 2);
             if(calc.a == mBuf[mCount - 2] && calc.b == mBuf[mCount - 1]) {
-                if(mCallback) {
-                    mCallback(mBuf, mCount - 2);
-                    reset();
-                }
+                msg = mBuf;
+                length = mCount - 2;
+                reset();
+                return true;
             } else {
                 reset();
             }
         }
+        msg = mBuf;
+        length = mCount - 2;
+        return false; // No message found
     }
 
     void reset() {
@@ -88,8 +82,7 @@ struct MessageFramer {
         mEscaping = false;
         mCount = 0;
     }
-private: 
-    CallbackFn mCallback;
+private:
     bool mEscaping;
     bool mParsing;
     uint8_t mCount;

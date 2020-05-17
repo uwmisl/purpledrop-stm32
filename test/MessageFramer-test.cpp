@@ -1,3 +1,4 @@
+#include <vector>
 #include "gtest/gtest.h"
 #include "MessageFramer.hpp"
 
@@ -14,69 +15,68 @@ struct MockParser {
     }
 };
 
-template<typename T>
-void serialize_message(
+std::vector<uint8_t>
+serialize_message(
     uint8_t* buf, 
-    uint32_t length, 
-    MessageFramer<T> &framer, 
+    uint32_t length,
     bool wrong_crc = false) 
 {
     Checksum cs;
-    framer.push(0x7e);
+    std::vector<uint8_t> ret;
+    ret.push_back(0x7e);
     for(uint32_t i=0; i<length; i++) {
         cs.push(buf[i]);
         if(buf[i] == 0x7d || buf[i] == 0x7e) {
             // Escape control characters
-            framer.push(0x7d);
-            framer.push(buf[i] ^ 0x20);
+            ret.push_back(0x7d);
+            ret.push_back(buf[i] ^ 0x20);
         } else {
-            framer.push(buf[i]);
+            ret.push_back(buf[i]);
         }
     }
     if(wrong_crc) {
         cs.a += 1;
     }
-    framer.push(cs.a);
-    framer.push(cs.b);
+    ret.push_back(cs.a);
+    ret.push_back(cs.b);
+
+    return ret;
 }
 
 struct FramerTest : public ::testing::Test {
-    void SetUp() {
-        returnBuf = NULL;
-        returnLength = 0;
-        framer.registerMessageCallback(
-        [](uint8_t *buf, uint32_t len) { 
-            returnBuf = buf; 
-            returnLength = len; 
-        }
-    );
-    }
+    void SetUp() {}
 
     MessageFramer<MockParser> framer;
-    static uint8_t *returnBuf;
-    static uint32_t returnLength;
 };
-uint8_t *FramerTest::returnBuf = NULL;
-uint32_t FramerTest::returnLength = 0;
 
-TEST_F(FramerTest, Happy1) {
+TEST_F(FramerTest, ignore_bad_crc) {
     uint8_t message[16];
     for(int i=0; i < 16; i++) {
         message[i] = i+1;
     }
-    serialize_message(message, sizeof(message), framer, true);
-
-    ASSERT_EQ(returnLength, 0);
-    ASSERT_EQ(returnBuf, (uint8_t*)NULL);
+    auto tx_bytes = serialize_message(message, sizeof(message), true);
+    uint8_t *returnBuf;
+    uint16_t returnLength;
+    bool msgFound;
+    for(int i=0; i < tx_bytes.size(); i++) {
+        msgFound = framer.push(tx_bytes[i], returnBuf, returnLength);
+    }
+    ASSERT_FALSE(msgFound);
 }
 
-TEST_F(FramerTest, BadCrc) {
+TEST_F(FramerTest, parse_proper_message) {
     uint8_t message[16];
     for(int i=0; i < 16; i++) {
         message[i] = i+1;
     }
-    serialize_message(message, sizeof(message), framer);
-
+    auto tx_bytes = serialize_message(message, sizeof(message));
+    uint8_t *returnBuf;
+    uint16_t returnLength;
+    bool msgFound;
+    for(int i=0; i < tx_bytes.size(); i++) {
+        msgFound = framer.push(tx_bytes[i], returnBuf, returnLength);
+    }
+    ASSERT_TRUE(msgFound);
     ASSERT_EQ(returnLength, 16);
     ASSERT_NE(returnBuf, (uint8_t*)NULL);
     for(int i=0; i<16; i++) {
