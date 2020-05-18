@@ -8,8 +8,8 @@
 #define USBD_PID                        0x7da3
 
 #define USBD_LANGID_STRING              0x409
-#define USBD_MANUFACTURER_STRING        "NA"
-#define USBD_PRODUCT_STRING             "SpinCoater"
+#define USBD_MANUFACTURER_STRING        "UW MISL"
+#define USBD_PRODUCT_STRING             "PurpleDrop"
 #define USBD_CONFIGURATION_STRING    "VCP Config"
 #define USBD_INTERFACE_STRING        "VCP Interface"
 

@@ -18,6 +18,7 @@
     <module>modm:cmsis:device</module>
     <module>modm:docs</module>
     <module>modm:platform:adc:1</module>
+    <module>modm:platform:dac</module>
     <module>modm:platform:clock</module>
     <module>modm:platform:core</module>
     <module>modm:platform:heap</module>

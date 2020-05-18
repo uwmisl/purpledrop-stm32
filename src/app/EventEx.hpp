@@ -25,8 +25,6 @@ struct Registerable {
         unregister();
     }
 
-    //void * handler() { return mEventHandler; }
-
     void unregister() {
         if(mOwner) {
             mOwner->remove(this);

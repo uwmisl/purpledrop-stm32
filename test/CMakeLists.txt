@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 project(PurpleDropTests)
 
 set(CMAKE_CXX_STANDARD 14)
+# Do debug build for tests by default
+set(CMAKE_BUILD_TYPE Debug)
 
 include_directories(../src/app)
 

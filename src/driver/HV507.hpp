@@ -4,7 +4,8 @@
 
 #include "modm/platform.hpp"
 #include "AppConfig.hpp"
-#include "MessageSender.hpp"
+#include "EventEx.hpp"
+#include "Events.hpp"
 #include "SystemClock.hpp"
 
 using namespace modm::platform;
@@ -33,21 +34,13 @@ public:
     static const uint32_t N_PINS = N_CHIPS * 64;
     static const uint32_t N_BYTES = N_CHIPS * 8;
 
-    struct ScanData {
-        uint16_t pins[N_PINS];
-    };
-
     struct SampleData {
         uint16_t sample0; // starting value
         uint16_t sample1; // final value
     };
 
-    typedef std::function<void(ScanData)> CapScanCallback_f;
-    typedef std::function<void(uint16_t, uint16_t)> CapCallback_f;
-    typedef std::function<void()> UpdateCallback_f;
-
-    void init(MessageSender *message_sender) {
-        mSender = message_sender;
+    void init(EventEx::EventBroker *broker) {
+        mBroker = broker;
         mCyclesSinceScan = 0;
         for(uint32_t i=0; i<N_BYTES; i++) {
             mShiftReg[i] = 0;
@@ -60,23 +53,9 @@ public:
         GAIN_SEL::reset();
     }
 
-    void setCapScanCallback(CapScanCallback_f &cb) {
-        mCapScanCallback = cb;
-    }
-
-    void setCapCallback(HV507<N_CHIPS>::CapCallback_f cb) {
-        mCapCallback = cb;
-    }
-
-    void setUpdateCallback(UpdateCallback_f &cb) {
-        mUpdateCallback = cb;
-    }
-
     // To be called by applicatin at 2x polarity frequency
     void drive();
 
-
-    /* Perform capacitance scan */
     void setElectrodes(uint8_t electrodes[N_BYTES]) {
         for(uint32_t i=0; i<N_BYTES; i++) {
             mShiftReg[i] = electrodes[i];
@@ -84,17 +63,14 @@ public:
         mShiftRegDirty = true;
     }
 
-
 private:
     uint8_t mShiftReg[N_BYTES];
     bool mShiftRegDirty = false;
     uint32_t mCyclesSinceScan;
-    ScanData mScanData;
-    MessageSender *mSender;
-    CapScanCallback_f mCapScanCallback;
-    CapCallback_f mCapCallback;
-    UpdateCallback_f mUpdateCallback;
+    uint16_t mScanData[N_PINS];
+    EventEx::EventBroker *mBroker;
 
+    /* Perform capacitance scan of all electrodes*/
     void scan();
     void loadShiftRegister();
     SampleData sampleCapacitance();
@@ -106,13 +82,16 @@ void HV507<N_CHIPS>::drive() {
 
     if(mCyclesSinceScan == SCAN_PERIOD) {
         scan();
-        // TODO: Queue results for transmit
+        events::CapScan event;
+        event.measurements = mScanData;
+        mBroker->publish(event);
     }
 
     if(mShiftRegDirty) {
         loadShiftRegister();
         mShiftRegDirty = false;
-        // TODO: Send CommandAck
+        events::ElectrodesUpdated event;
+        mBroker->publish(event);
     }
 
     if(!POL::read()) {
@@ -121,14 +100,11 @@ void HV507<N_CHIPS>::drive() {
         modm::delay(BLANKING_DELAY);
         INT_RESET::reset();
         modm::delay(RESET_DELAY);
-        // TODO: ADC conversion
-        uint16_t sample0 = 0;
-        BL::set();
-        modm::delay(SAMPLE_DELAY);
-        // TODO: ADC conversion
-        uint16_t sample1 = 0;
-        INT_RESET::set();
+
+        SampleData sample = sampleCapacitance();
         // Send active capacitance message
+        events::CapActive event(sample.sample0, sample.sample1);
+        mBroker->publish(event);
 
     } else {
         POL::reset();
@@ -138,7 +114,7 @@ void HV507<N_CHIPS>::drive() {
 template<uint32_t N_CHIPS>
 void HV507<N_CHIPS>::scan() {
     // Clear all bits in the shift register except the first
-    for(int i=0; i < N_BYTES - 1; i++) {
+    for(uint32_t i=0; i < N_BYTES - 1; i++) {
         SPI::transferBlocking(0);
     }
     SPI::transferBlocking(1);
@@ -150,20 +126,19 @@ void HV507<N_CHIPS>::scan() {
     POL::reset();
     BL::reset();
 
-    // TODO: delay configurable time
     modm::delay(200us);
 
-    for(int i=N_PINS-1; i >= 0; i--) {
-        uint16_t sample0, sample1;
+    for(uint32_t i=N_PINS-1; i >= 0; i--) {
         if(i == AppConfig::CommonPin()) {
             // Skip the common top plate electrode
             SCK::set();
-            // TODO: Delay 80ns
+            modm::delay(80ns);
             SCK::reset();
             continue;
         }
 
-        sampleCapacitance();
+        SampleData sample = sampleCapacitance();
+        mScanData[i] = sample.sample1 - sample.sample1;
         BL::reset();
         SCK::set();
         INT_RESET::set();
@@ -194,7 +169,7 @@ void HV507<N_CHIPS>::loadShiftRegister() {
 template <uint32_t N_CHIPS>
 typename HV507<N_CHIPS>::SampleData HV507<N_CHIPS>::sampleCapacitance() {
     SampleData ret;
-    Adc1::setChannel(INT_VOUT::AdcChannel<Adc1>, Adc1::SampleTime::Cycles3);
+    Adc1::setChannel(Adc1::getPinChannel<INT_VOUT>(), Adc1::SampleTime::Cycles3);
     // Performed with interrupts disabled for consistent timing
     {
         modm::atomic::Lock lck;

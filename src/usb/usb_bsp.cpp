@@ -7,13 +7,17 @@ extern "C" {
 #include <modm/platform.hpp>
 
 using namespace modm::platform;
-
+using namespace std::chrono_literals;
 #define GPIO_AF_OTG1_FS 10
 
 extern "C" void USB_OTG_BSP_Init(USB_OTG_CORE_HANDLE * pdev)
 {
   (void)pdev;
   printf("OTG BSP INIT\n");
+  GpioA12::setOutput(Gpio::OutputType::PushPull);
+  GpioA12::reset();
+  modm::delay(10ms);
+  GpioA12::setInput();
   GpioA11::setAlternateFunction(GPIO_AF_OTG1_FS);
   GpioA12::setAlternateFunction(GPIO_AF_OTG1_FS);
   //GpioA9::setAlternateFunction(GPIO_AF_OTG1_FS);

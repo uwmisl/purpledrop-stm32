@@ -1,9 +1,15 @@
+#pragma once
 #include <cstdint>
 #include <cstdlib>
 #include <cmath>
 
+struct IMax31865 {
+    virtual float read_resistance() = 0;
+    virtual float read_temperature() = 0;
+};
+
 template<class SPI, class CS> 
-struct Max31865 {
+struct Max31865 : IMax31865 {
     enum Regs {
         Configuration = 0,
         RtdHigh = 1,

@@ -50,7 +50,7 @@ program-bmp: build
 	@python3 modm/modm_tools/bmp.py -p $(port) $(ELF_FILE)
 
 gdb: build
-	arm-none-eabi-gdb -q -x openocd.gdb
+	gdb-multiarch -q -x openocd.gdb
 
 docs:
 	(cd modm/docs && doxygen doxyfile.cfg)

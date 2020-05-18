@@ -17,3 +17,6 @@ CMakeCache.txt
 !.vscode/*.svd
 !.vscode/launch.json
 !.vscode/tasks.json
+
+# debugging trace
+itm.txt

@@ -12,10 +12,15 @@ extern "C" {
 #include <modm/architecture/interface/clock.hpp>
 
 #include "usb_vcp.hpp"
+#include "AppConfigController.hpp"
+#include "Comms.hpp"
+#include "EventEx.hpp"
 #include "HV507.hpp"
+#include "HvRegulator.hpp"
 #include "Max31865.hpp"
 #include "CircularBuffer.hpp"
 #include "SystemClock.hpp"
+#include "TempSensors.hpp"
 
 using namespace modm::platform;
 using namespace modm::literals;
@@ -23,13 +28,11 @@ using namespace modm::literals;
 StaticCircularBuffer<uint8_t, 512> USBTxBuffer;
 StaticCircularBuffer<uint8_t, 512> USBRxBuffer;
 
-Max31865<SpiMaster2, GpioB13> Rtd0;
-Max31865<SpiMaster2, GpioB12> Rtd1;
-Max31865<SpiMaster2, GpioB10> Rtd2;
-Max31865<SpiMaster2, GpioB1> Rtd3;
-
-HV507<> HvControl;
-MessageSender messageSender;
+AppConfigController appConfigController;
+HV507<> hvControl;
+EventEx::EventBroker broker;
+Comms comms;
+HvRegulator hvRegulator;
 
 int main() {
     // Setup global peripheral register structs for use in debugger
@@ -40,37 +43,18 @@ int main() {
 
 
     printf("Beginning Initialization...\n");
-    HvControl.init(&messageSender);
-
-    //HvControl.setUpdateCallback(|| {})
+    appConfigController.init(&broker);
+    hvControl.init(&broker);
+    hvRegulator.init(&broker);
 
     VCP_Setup(&USBRxBuffer, &USBTxBuffer);
+    comms.init(&broker, &USBRxBuffer, &USBTxBuffer, &VCP_FlushTx);
 
-    static const uint32_t UPDATE_PERIOD = 20;
-    uint32_t NextUpdateTime = UPDATE_PERIOD;
-    uint8_t rxBuf[64];
-    uint8_t txBuf[8];
     while(1) {
-        int rdCount = 0;
-        while(!USBRxBuffer.empty()) {
-            rxBuf[rdCount++] = USBRxBuffer.pop();
-        }
-        if(rdCount > 0) {
-            printf("Sending data\n");
-            VCP_Send(rxBuf, rdCount);
-        }
-        if(modm::chrono::milli_clock::now().time_since_epoch().count() >= NextUpdateTime) {
-            NextUpdateTime += UPDATE_PERIOD;
-
-            SpiMaster3::transferBlocking(txBuf, 0, 8);
-            // float cur_rpm = RpmSense.value() * 60 / 7;
-            // uint32_t pulse_width = Motor.update(cur_rpm);
-            // if(ReportEnable) {
-            //     snprintf(fmtBuf, MAX_FMT_SIZE, "MTR %lu %.1f %d\n", SystickClock, cur_rpm, (int)pulse_width);
-            //     VCP_Send((uint8_t*)fmtBuf, strlen(fmtBuf));
-            // }
-        }
-        //Parser.poll();
+        comms.poll();
+        //TempSensors::poll();
+        hvRegulator.poll();
+        //hvControl.drive();
     }
 }
 

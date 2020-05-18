@@ -15,6 +15,8 @@ include(./modm/repo.cmake)
 
 project(purpledrop)
 
+set(CMAKE_BUILD_TYPE Debug)
+
 set(PERIPH lib/STM32F4xx_StdPeriph_Driver)
 set(USB lib/STM32_USB_OTG_Driver)
 set(USBD lib/STM32_USB_Device_Library)
