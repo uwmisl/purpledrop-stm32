@@ -1,8 +1,12 @@
+#include "SystemClock.hpp"
 #include "TempSensors.hpp"
 
 using namespace modm::platform;
 
 using SPI = SpiMaster2;
+using SCK = GpioC7;
+using MOSI = GpioB15;
+using MISO = GpioB14;
 using CS0 = GpioC0;
 using CS1 = GpioC0;
 using CS2 = GpioC0;
@@ -19,14 +23,25 @@ IMax31865 *TempSensors::mDrivers[] = {
     &Sensor2,
     &Sensor3
 };
-
-PeriodicPollingTimer TempSensors::mTimer = PeriodicPollingTimer(AppConfig::TEMP_READ_PERIOD);
 uint16_t TempSensors::mReadings[AppConfig::N_TEMP_SENSOR] = {0};
+
+void TempSensors::init(EventEx::EventBroker *broker) {
+    mBroker = broker;
+    SPI::initialize<SystemClock, 3_MHz>();
+    SPI::connect<SCK::Sck, MOSI::Mosi, MISO::Miso>();
+    for(uint32_t i=0; i<AppConfig::N_TEMP_SENSOR; i++) {
+        mDrivers[i]->init(4000., 1000.);
+    }
+}
 
 void TempSensors::poll() {
     if(mTimer.poll()) {
+        events::TemperatureMeasurement event;
         for(uint32_t i=0; i<AppConfig::N_TEMP_SENSOR; i++) {
             mReadings[i] = mDrivers[i]->read_temperature();
+            event.measurements[i] = mReadings[i];
         }
+
+        mBroker->publish(event);
     }
 }
