@@ -42,6 +42,9 @@ struct SetParameterAck : public Event {
 
 struct SetElectrodes : public Event {};
 
+struct TemperatureMeasurement : public Event {
+    uint16_t measurements[AppConfig::N_TEMP_SENSOR];
+};
 
 
 } //namespace events

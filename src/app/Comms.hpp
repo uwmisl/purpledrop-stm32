@@ -39,12 +39,14 @@ private:
     EventHandlerFunction<events::CapActive> mCapActiveHandler;
     EventHandlerFunction<events::ElectrodesUpdated> mElectrodesUpdatedHandler;
     EventHandlerFunction<events::SetParameterAck> mSetParameterAckHandler;
+    EventHandlerFunction<events::TemperatureMeasurement> mTemperatureMeasurementHandler;
 
     void ProcessMessage(uint8_t *buf, uint16_t len);
     void HandleCapActive(events::CapActive &e);
     void HandleCapScan(events::CapScan &e);
     void HandleElectrodesUpdated(events::ElectrodesUpdated &e);
     void HandleSetParameterAck(events::SetParameterAck &e);
+    void HandleTemperatureMeasurement(events::TemperatureMeasurement &e);
 
     void PeriodicSend();
 };

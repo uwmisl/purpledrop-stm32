@@ -23,6 +23,8 @@ void Comms::init(
     mBroker->registerHandler(&mElectrodesUpdatedHandler);
     mSetParameterAckHandler.setFunction([this](auto &e) { HandleSetParameterAck(e); });
     mBroker->registerHandler(&mSetParameterAckHandler);
+    mTemperatureMeasurementHandler.setFunction([this](auto &e) { HandleTemperatureMeasurement(e); });
+    mBroker->registerHandler(&mTemperatureMeasurementHandler);
 }
 
 void Comms::poll() {
@@ -89,6 +91,18 @@ void Comms::HandleSetParameterAck(SetParameterAck &e) {
     msg.paramIdx = e.paramIdx;
     msg.paramValue.i32 = e.paramValue.i32;
     msg.writeFlag = 0;
+    msg.serialize(ser);
+    mFlush();
+}
+
+void Comms::HandleTemperatureMeasurement(TemperatureMeasurement &e) {
+    TemperatureMsg msg;
+    Serializer ser(mTxQueue);
+    printf("Sending temps\n");
+    msg.count = AppConfig::N_TEMP_SENSOR;
+    for(uint32_t i=0; i<AppConfig::N_TEMP_SENSOR; i++) {
+        msg.temps[i] = e.measurements[i];
+    }
     msg.serialize(ser);
     mFlush();
 }
