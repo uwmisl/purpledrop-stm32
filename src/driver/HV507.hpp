@@ -9,6 +9,7 @@
 #include "SystemClock.hpp"
 
 using namespace modm::platform;
+using namespace modm::literals;
 using namespace std::chrono_literals;
 
 using SPI = SpiMaster3;
@@ -24,9 +25,9 @@ using GAIN_SEL = GpioC3;
 
 // Cycles between capacitance scans; must be even
 static const uint32_t SCAN_PERIOD = 500;
-static const auto BLANKING_DELAY = 0ns;
-static const auto RESET_DELAY = 0ns;
-static const auto SAMPLE_DELAY = 0ns;
+static const auto BLANKING_DELAY = 14us;
+static const auto RESET_DELAY = 1000ns;
+static const auto SAMPLE_DELAY = 5000ns;
 
 template<uint32_t N_CHIPS = 2>
 class HV507 {
@@ -47,8 +48,9 @@ public:
         }
 
         SPI::connect<SCK::Sck, MOSI::Mosi, GpioUnused::Miso>();
-        SpiMaster3::initialize<SystemClock, 6000000>();
+        SPI::initialize<SystemClock, 6000000>();
         Adc1::connect<INT_VOUT::In2>();
+        Adc1::initialize<SystemClock, 24_MHz>();
         INT_RESET::set();
         GAIN_SEL::reset();
     }
@@ -81,6 +83,7 @@ void HV507<N_CHIPS>::drive() {
     mCyclesSinceScan++;
 
     if(mCyclesSinceScan == SCAN_PERIOD) {
+        mCyclesSinceScan = 0;
         scan();
         events::CapScan event;
         event.measurements = mScanData;
@@ -105,7 +108,6 @@ void HV507<N_CHIPS>::drive() {
         // Send active capacitance message
         events::CapActive event(sample.sample0, sample.sample1);
         mBroker->publish(event);
-
     } else {
         POL::reset();
     }
@@ -128,8 +130,8 @@ void HV507<N_CHIPS>::scan() {
 
     modm::delay(200us);
 
-    for(uint32_t i=N_PINS-1; i >= 0; i--) {
-        if(i == AppConfig::CommonPin()) {
+    for(int32_t i=N_PINS-1; i >= 0; i--) {
+        if(i == (int)AppConfig::CommonPin()) {
             // Skip the common top plate electrode
             SCK::set();
             modm::delay(80ns);
@@ -138,7 +140,8 @@ void HV507<N_CHIPS>::scan() {
         }
 
         SampleData sample = sampleCapacitance();
-        mScanData[i] = sample.sample1 - sample.sample1;
+        //printf("Writing to %ld (%lx)\n", i, (uint32_t)&mScanData[i]);
+        mScanData[i] = sample.sample1 - sample.sample0;
         BL::reset();
         SCK::set();
         INT_RESET::set();
@@ -159,7 +162,7 @@ void HV507<N_CHIPS>::scan() {
 
 template <uint32_t N_CHIPS>
 void HV507<N_CHIPS>::loadShiftRegister() {
-    SPI::transferBlocking(mShiftReg, NULL, N_BYTES);
+    SPI::transferBlocking(mShiftReg, 0, N_BYTES);
     LE::reset();
     // Per datasheet, min LE pulse width is 80ns
     modm::delay(80ns);
