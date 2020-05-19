@@ -1,5 +1,9 @@
 #pragma once
 
+extern "C" {
+	#include "rcc.h"
+}
+
 #include <cstdint>
 
 #include "modm/platform.hpp"

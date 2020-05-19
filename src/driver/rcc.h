@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 #define RCC_PLLSource_HSI                ((uint32_t)0x00000000)
 #define RCC_PLLSource_HSE                ((uint32_t)0x00400000)
 

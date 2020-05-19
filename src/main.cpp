@@ -33,6 +33,10 @@ HV507<> hvControl;
 EventEx::EventBroker broker;
 Comms comms;
 HvRegulator hvRegulator;
+TempSensors tempSensors;
+PeriodicPollingTimer mainLoopTimer(1000, true);
+
+using LoopTimingPin = GpioB11;
 
 int main() {
     // Setup global peripheral register structs for use in debugger
@@ -46,15 +50,21 @@ int main() {
     appConfigController.init(&broker);
     hvControl.init(&broker);
     hvRegulator.init(&broker);
+    tempSensors.init(&broker);
 
     VCP_Setup(&USBRxBuffer, &USBTxBuffer);
     comms.init(&broker, &USBRxBuffer, &USBTxBuffer, &VCP_FlushTx);
 
+    LoopTimingPin::setOutput(Gpio::OutputType::PushPull);
     while(1) {
-        comms.poll();
-        //TempSensors::poll();
-        hvRegulator.poll();
-        //hvControl.drive();
+        if(mainLoopTimer.poll()) {
+            LoopTimingPin::set();
+            comms.poll();
+            tempSensors.poll();
+            // hvRegulator.poll();
+            // hvControl.drive();
+            LoopTimingPin::reset();
+        }
     }
 }
 

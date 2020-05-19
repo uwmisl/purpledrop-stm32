@@ -8,7 +8,10 @@
  * when a period has elapsed. 
  */
 struct PeriodicPollingTimer {
-    PeriodicPollingTimer(uint32_t period_us) : mPeriod(period_us) {}
+    PeriodicPollingTimer(uint32_t period_us, bool drop_on_overrun = false) : 
+        mPeriod(period_us), 
+        mDropOnOverrun(drop_on_overrun) 
+    {}
 
     void reset() {
         uint32_t curTime = modm::chrono::micro_clock::now().time_since_epoch().count();
@@ -18,6 +21,14 @@ struct PeriodicPollingTimer {
         uint32_t curTime = modm::chrono::micro_clock::now().time_since_epoch().count();
         if(curTime >= mNextTime) {
             mNextTime += mPeriod;
+            // In drop-on-overrun mode, we don't accumulate events if we have a bubble
+            // between poll calls
+            if(mDropOnOverrun) {
+                if(mNextTime < curTime) {
+                    mNextTime = curTime + mPeriod;
+                    return false;
+                }
+            }
             return true;
         }
         return false;
@@ -25,4 +36,5 @@ struct PeriodicPollingTimer {
 private:
     uint32_t mPeriod;
     uint32_t mNextTime;
+    bool mDropOnOverrun;
 };

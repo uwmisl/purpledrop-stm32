@@ -4,6 +4,7 @@
 #include <cmath>
 
 struct IMax31865 {
+    virtual void init(float resist_ref, float resist_zero) = 0;
     virtual float read_resistance() = 0;
     virtual float read_temperature() = 0;
 };
@@ -51,11 +52,11 @@ struct Max31865 : IMax31865 {
         mResistRef = resist_ref;
         static const uint16_t LOW_THRESH = 0;
         static const uint16_t HIGH_THRESH = 0x7fff;
-        writeReg(Configuration, VBias | ConversionMode);
-        writeReg(LowFaultThresholdMsb, (LOW_THRESH >> 8));
-        writeReg(LowFaultThresholdLsb, LOW_THRESH & 0xff);
-        writeReg(HighFaultThresholdMsb, (HIGH_THRESH >> 8));
-        writeReg(HighFaultThresholdLsb, HIGH_THRESH & 0xff);
+        writeByte(Configuration, VBias | ConversionMode);
+        writeByte(LowFaultThresholdMsb, (LOW_THRESH >> 8));
+        writeByte(LowFaultThresholdLsb, LOW_THRESH & 0xff);
+        writeByte(HighFaultThresholdMsb, (HIGH_THRESH >> 8));
+        writeByte(HighFaultThresholdLsb, HIGH_THRESH & 0xff);
     }
 
     float read_resistance() {
