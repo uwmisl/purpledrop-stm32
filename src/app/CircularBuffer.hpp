@@ -26,6 +26,7 @@ struct CircularBuffer : public IProducer<T>, IConsumer<T> {
     virtual T pop() = 0;
     virtual bool empty() = 0;
     virtual uint32_t count() = 0;
+    virtual void clear() = 0;
 };
 
 template <typename T, int size>
@@ -70,6 +71,11 @@ public:
     // Get the number of items in the queue
     uint32_t count() {
         return (head - tail) % size;
+    }
+
+    void clear() {
+        head = 0;
+        tail = 0;
     }
 
     bool empty() {

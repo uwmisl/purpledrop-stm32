@@ -13,10 +13,12 @@ extern "C" {
 }
 
 #include "CircularBuffer.hpp"
+#include "modm/platform.hpp"
 
 #define RX_BUF_SIZE CDC_DATA_MAX_PACKET_SIZE
 #define TX_BUF_SIZE CDC_DATA_MAX_PACKET_SIZE
 __ALIGN_BEGIN USB_OTG_CORE_HANDLE USB_OTG_dev __ALIGN_END;
+static volatile bool UsbConnected = false;
 static volatile bool TxActiveFlag = 0;
 static uint8_t Rxbuffer[RX_BUF_SIZE];
 static uint8_t Txbuffer[TX_BUF_SIZE];
@@ -25,13 +27,17 @@ static IProducer<uint8_t> *RxQueue = NULL;
 static CircularBuffer<uint8_t> *TxQueue = NULL;
 
 void FillTx() {
+    if(!UsbConnected) {
+        return;
+    }
     uint32_t count = 0;
-    while(!TxQueue->empty()) {
+    while(!TxQueue->empty() && count < TX_BUF_SIZE) {
         Txbuffer[count++] = TxQueue->pop();
     }
     if(count > 0) {
         TxActiveFlag = true;
         DCD_EP_Tx(&USB_OTG_dev, CDC_IN_EP, Txbuffer, count);
+        printf("Tx %ld bytes\n", count);
     }
 }
 
@@ -39,6 +45,11 @@ void VCP_FlushTx() {
     if(!TxActiveFlag) {
         FillTx();
     }
+}
+
+void VCP_Reset() {
+    TxQueue->clear();
+    TxActiveFlag = false;
 }
 
 /* send data function */
@@ -52,9 +63,9 @@ uint32_t VCP_Send(uint8_t * pbuf, uint32_t buf_len, bool flush)
         tx_count++;
     }
 
-    if(flush) {
-        VCP_FlushTx();
-    }
+    // if(flush) {
+    //     VCP_FlushTx();
+    // }
     return tx_count;
 }
 
@@ -79,6 +90,7 @@ void VCP_Setup(IProducer<uint8_t> *rx_queue, CircularBuffer<uint8_t> *tx_queue)
 extern "C" {
     static uint16_t DataTxCb(void)
     {
+        printf("DataTxCB\n");
         TxActiveFlag = false;
         // Fill TX if there's data available, or do nothing if not
         FillTx();
@@ -101,3 +113,57 @@ extern "C" {
         DataRxCb
     };
 }
+
+
+extern "C" {
+/**
+ * User defined callbacks for the USB driver
+ */
+
+void USBD_USR_Init(void)
+{
+  printf("USB INIT\n");
+}
+
+void USBD_USR_DeviceReset(uint8_t speed)
+{
+  printf("DEVICE RESET\n");
+  switch (speed)
+  {
+  case USB_OTG_SPEED_HIGH:
+  case USB_OTG_SPEED_FULL:
+    break;
+  }
+}
+
+
+void USBD_USR_DeviceConfigured(void)
+{
+  printf("DEVICE CONFIGURED\n");
+  VCP_Reset();
+  UsbConnected = true;
+}
+
+
+void USBD_USR_DeviceSuspended(void)
+{
+}
+
+
+void USBD_USR_DeviceResumed(void)
+{
+}
+
+
+void USBD_USR_DeviceConnected(void)
+{
+  printf("DEVICE CONNECTED\n");
+}
+
+void USBD_USR_DeviceDisconnected(void)
+{
+  printf("DEVICE DISCONNECTED\n");
+}
+
+
+} // extern "C"
