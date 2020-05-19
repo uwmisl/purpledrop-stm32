@@ -188,6 +188,7 @@ struct TemperatureMsg {
         for(uint32_t i=0; i<count; i++) {
             s.push(temps[i]);
         }
+        s.finish();
     }
 
 };
