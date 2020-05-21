@@ -34,12 +34,16 @@ private:
     bool mCapScanDataDirty;
     static const uint32_t CapScanMsgSize = 8;
 
+    uint16_t mHvUpdateCounter;
+    static const uint16_t HvMessageDivider = 10;
+
     // Allocate storage for event handlers
     EventHandlerFunction<events::CapScan> mCapScanHandler;
     EventHandlerFunction<events::CapActive> mCapActiveHandler;
     EventHandlerFunction<events::ElectrodesUpdated> mElectrodesUpdatedHandler;
     EventHandlerFunction<events::SetParameterAck> mSetParameterAckHandler;
     EventHandlerFunction<events::TemperatureMeasurement> mTemperatureMeasurementHandler;
+    EventHandlerFunction<events::HvRegulatorUpdate> mHvRegulatorUpdateHandler;
 
     void ProcessMessage(uint8_t *buf, uint16_t len);
     void HandleCapActive(events::CapActive &e);
@@ -47,6 +51,7 @@ private:
     void HandleElectrodesUpdated(events::ElectrodesUpdated &e);
     void HandleSetParameterAck(events::SetParameterAck &e);
     void HandleTemperatureMeasurement(events::TemperatureMeasurement &e);
+    void HandleHvRegulatorUpdate(events::HvRegulatorUpdate &e);
 
     void PeriodicSend();
 };

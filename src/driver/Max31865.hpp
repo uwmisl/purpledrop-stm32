@@ -4,7 +4,7 @@
 #include <cmath>
 
 struct IMax31865 {
-    virtual void init(float resist_ref, float resist_zero) = 0;
+    virtual void init(float resist_ref) = 0;
     virtual float read_resistance() = 0;
     virtual float read_temperature() = 0;
 };
@@ -48,7 +48,7 @@ struct Max31865 : IMax31865 {
         SPI::transferBlocking(txBuf, NULL, 2);
     }
 
-    void init(float resist_ref, float resist_zero) {
+    void init(float resist_ref) {
         mResistRef = resist_ref;
         static const uint16_t LOW_THRESH = 0;
         static const uint16_t HIGH_THRESH = 0x7fff;

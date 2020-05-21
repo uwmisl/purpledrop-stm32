@@ -190,7 +190,20 @@ struct TemperatureMsg {
         }
         s.finish();
     }
+};
 
+struct HvRegulatorMsg {
+    static const uint8_t ID = 8;
+
+    float voltage;
+    uint16_t vTargetOut;
+
+    void serialize(Serializer &s) {
+        s.push(ID);
+        s.push(voltage);
+        s.push(vTargetOut);
+        s.finish();
+    }
 };
 
 #define PREDICT(msgname) case msgname::ID: \

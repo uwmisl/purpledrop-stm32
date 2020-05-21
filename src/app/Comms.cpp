@@ -25,6 +25,8 @@ void Comms::init(
     mBroker->registerHandler(&mSetParameterAckHandler);
     mTemperatureMeasurementHandler.setFunction([this](auto &e) { HandleTemperatureMeasurement(e); });
     mBroker->registerHandler(&mTemperatureMeasurementHandler);
+    mHvRegulatorUpdateHandler.setFunction([this](auto &e) { HandleHvRegulatorUpdate(e); });
+    mBroker->registerHandler(&mHvRegulatorUpdateHandler);
 }
 
 void Comms::poll() {
@@ -83,6 +85,18 @@ void Comms::HandleElectrodesUpdated(ElectrodesUpdated &e) {
     msg.acked_id = ElectrodeEnableMsg::ID;
     msg.serialize(ser);
     mFlush();
+}
+
+void Comms::HandleHvRegulatorUpdate(HvRegulatorUpdate &e) {
+    mHvUpdateCounter++;
+    if(mHvUpdateCounter >= HvMessageDivider) {
+        HvRegulatorMsg msg;
+        Serializer ser(mTxQueue);
+        msg.voltage = e.voltage;
+        msg.vTargetOut = e.vTargetOut;
+        msg.serialize(ser);
+        mFlush();
+    }
 }
 
 void Comms::HandleSetParameterAck(SetParameterAck &e) {

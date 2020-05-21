@@ -17,6 +17,8 @@ static Max31865<SPI, GpioB12> Sensor1;
 static Max31865<SPI, GpioB10> Sensor2;
 static Max31865<SPI, GpioB1> Sensor3;
 
+static const float RESIST_REF = 4000.0;
+
 IMax31865 *TempSensors::mDrivers[] = {
     &Sensor0,
     &Sensor1,
@@ -30,7 +32,7 @@ void TempSensors::init(EventEx::EventBroker *broker) {
     SPI::initialize<SystemClock, 3_MHz>();
     SPI::connect<SCK::Sck, MOSI::Mosi, MISO::Miso>();
     for(uint32_t i=0; i<AppConfig::N_TEMP_SENSOR; i++) {
-        mDrivers[i]->init(4000., 1000.);
+        mDrivers[i]->init(RESIST_REF);
     }
 }
 

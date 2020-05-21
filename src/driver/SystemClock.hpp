@@ -51,7 +51,7 @@ struct SystemClock {
 	enable()
 	{
         // Setup clocks to use 8MHz HSE -> 96MHz sys clock + 48MHz for USB
-        Rcc::enableExternalClock();	// 8MHz
+        Rcc::enableExternalCrystal(); // 8MHz
 
         RCC_PLLConfig(
             RCC_PLLSource_HSE,

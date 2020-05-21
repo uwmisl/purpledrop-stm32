@@ -7,11 +7,13 @@ extern "C" {
     #include "stm32f4xx_ip_dbg.h"
 }
 
-#include <modm/platform.hpp>
-#include <modm/platform/clock/rcc.hpp>
-#include <modm/architecture/interface/clock.hpp>
+#include "modm/platform.hpp"
+#include "modm/platform/clock/rcc.hpp"
+#include "modm/driver/pwm/pca9685.hpp"
+#include "modm/architecture/interface/clock.hpp"
 
 #include "usb_vcp.hpp"
+#include "Analog.hpp"
 #include "AppConfigController.hpp"
 #include "Comms.hpp"
 #include "EventEx.hpp"
@@ -25,9 +27,13 @@ extern "C" {
 using namespace modm::platform;
 using namespace modm::literals;
 
+static const uint8_t PCA9685_I2C_ADDR = 0x40;
+using I2C = I2cMaster1;
+
 StaticCircularBuffer<uint8_t, 512> USBTxBuffer;
 StaticCircularBuffer<uint8_t, 512> USBRxBuffer;
 
+Analog analog;
 AppConfigController appConfigController;
 HV507<> hvControl;
 EventEx::EventBroker broker;
@@ -35,6 +41,7 @@ Comms comms;
 HvRegulator hvRegulator;
 TempSensors tempSensors;
 PeriodicPollingTimer mainLoopTimer(1000, true);
+modm::Pca9685<I2C> pwmChip(PCA9685_I2C_ADDR);
 
 using LoopTimingPin = GpioB11;
 
@@ -45,11 +52,12 @@ int main() {
     SystemClock::enable();
 	SysTickTimer::initialize<SystemClock>();
 
-
     printf("Beginning Initialization...\n");
+    analog.init();
+    pwmChip.initialize();
     appConfigController.init(&broker);
-    hvControl.init(&broker);
-    hvRegulator.init(&broker);
+    hvControl.init(&broker, &analog);
+    hvRegulator.init(&broker, &analog);
     tempSensors.init(&broker);
 
     VCP_Setup(&USBRxBuffer, &USBTxBuffer);
@@ -61,7 +69,7 @@ int main() {
             LoopTimingPin::set();
             comms.poll();
             tempSensors.poll();
-            // hvRegulator.poll();
+            hvRegulator.poll();
             // hvControl.drive();
             LoopTimingPin::reset();
         }

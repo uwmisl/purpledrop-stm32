@@ -8,7 +8,7 @@ ConfigOptionDescriptor AppConfig::optionDescriptors[] = {
     INTOPT(CapScanSettleDelayId, 2000),
     INTOPT(HvControlEnabledId, 0),
     FLTOPT(HvControlTargetId, 200.0),
-    INTOPT(HvControlOutputId, 1241)
+    INTOPT(HvControlOutputId, 120)
 };
 
 const uint32_t AppConfig::N_OPT_DESCRIPTOR = sizeof(AppConfig::optionDescriptors) / sizeof(AppConfig::optionDescriptors[0]);

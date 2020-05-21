@@ -28,6 +28,7 @@ file(GLOB APP_SOURCE_FILES
     src/usb/*.cpp
     src/app/*.cpp
     src/driver/*.c
+    src/driver/*.cpp
     ${USB}/src/usb_core.c
 	${USB}/src/usb_dcd_int.c
 	${USB}/src/usb_dcd.c
@@ -59,3 +60,4 @@ add_custom_target(${CMAKE_PROJECT_NAME}.hex ALL DEPENDS ${CMAKE_PROJECT_NAME} CO
 add_custom_target(${CMAKE_PROJECT_NAME}.lss ALL DEPENDS ${CMAKE_PROJECT_NAME} COMMAND ${CMAKE_OBJDUMP}  -x -s -S -l -w ${CMAKE_PROJECT_NAME}.elf > ${CMAKE_PROJECT_NAME}.lss)
 #% FIXME: build path does not contain python tools of course
 #% add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD COMMAND python3 ./modm/modm_tools/size.py ${CMAKE_PROJECT_NAME}.elf "[{'name': 'flash', 'access': 'rx', 'start': 134217728, 'size': 1572864}, {'name': 'ccm', 'access': 'rw', 'start': 268435456, 'size': 65536}, {'name': 'sram1', 'access': 'rwx', 'start': 536870912, 'size': 327680}, {'name': 'backup', 'access': 'rwx', 'start': 1073889280, 'size': 4096}]")
+

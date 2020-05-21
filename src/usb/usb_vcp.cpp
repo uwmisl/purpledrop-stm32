@@ -37,7 +37,6 @@ void FillTx() {
     if(count > 0) {
         TxActiveFlag = true;
         DCD_EP_Tx(&USB_OTG_dev, CDC_IN_EP, Txbuffer, count);
-        printf("Tx %ld bytes\n", count);
     }
 }
 
@@ -90,7 +89,6 @@ void VCP_Setup(IProducer<uint8_t> *rx_queue, CircularBuffer<uint8_t> *tx_queue)
 extern "C" {
     static uint16_t DataTxCb(void)
     {
-        printf("DataTxCB\n");
         TxActiveFlag = false;
         // Fill TX if there's data available, or do nothing if not
         FillTx();

@@ -3,6 +3,7 @@
 #include <functional>
 
 #include "modm/platform.hpp"
+#include "Analog.hpp"
 #include "AppConfig.hpp"
 #include "EventEx.hpp"
 #include "Events.hpp"
@@ -40,8 +41,9 @@ public:
         uint16_t sample1; // final value
     };
 
-    void init(EventEx::EventBroker *broker) {
+    void init(EventEx::EventBroker *broker, Analog *analog) {
         mBroker = broker;
+        mAnalog = analog;
         mCyclesSinceScan = 0;
         for(uint32_t i=0; i<N_BYTES; i++) {
             mShiftReg[i] = 0;
@@ -49,8 +51,6 @@ public:
 
         SPI::connect<SCK::Sck, MOSI::Mosi, GpioUnused::Miso>();
         SPI::initialize<SystemClock, 6000000>();
-        Adc1::connect<INT_VOUT::In2>();
-        Adc1::initialize<SystemClock, 24_MHz>();
         INT_RESET::set();
         GAIN_SEL::reset();
     }
@@ -71,6 +71,7 @@ private:
     uint32_t mCyclesSinceScan;
     uint16_t mScanData[N_PINS];
     EventEx::EventBroker *mBroker;
+    Analog *mAnalog;
 
     /* Perform capacitance scan of all electrodes*/
     void scan();
@@ -172,7 +173,8 @@ void HV507<N_CHIPS>::loadShiftRegister() {
 template <uint32_t N_CHIPS>
 typename HV507<N_CHIPS>::SampleData HV507<N_CHIPS>::sampleCapacitance() {
     SampleData ret;
-    Adc1::setChannel(Adc1::getPinChannel<INT_VOUT>(), Adc1::SampleTime::Cycles3);
+
+    mAnalog->setupIntVout();
     // Performed with interrupts disabled for consistent timing
     {
         modm::atomic::Lock lck;
@@ -181,17 +183,13 @@ typename HV507<N_CHIPS>::SampleData HV507<N_CHIPS>::sampleCapacitance() {
         modm::delay(RESET_DELAY);
         // Take an initial reading of integrator output -- the integrator does not
         // reset fully to 0V
-        Adc1::startConversion();
-        while(!Adc1::isConversionFinished());
-        ret.sample0 = Adc1::getValue();
+        ret.sample0 = mAnalog->readIntVout();
         // Release the blanking signal, and allow time for active electrodes to
         // charge and current to settle back to zero
         BL::set();
         modm::delay(SAMPLE_DELAY);
         // Read voltage integrator
-        Adc1::startConversion();
-        while(!Adc1::isConversionFinished());
-        ret.sample1 = Adc1::getValue();
+        ret.sample1 = mAnalog->readIntVout();
     }
     return ret;
 }

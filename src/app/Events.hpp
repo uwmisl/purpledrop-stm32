@@ -46,5 +46,10 @@ struct TemperatureMeasurement : public Event {
     uint16_t measurements[AppConfig::N_TEMP_SENSOR];
 };
 
+struct HvRegulatorUpdate : public Event {
+    float voltage;
+    uint16_t vTargetOut;
+};
+
 
 } //namespace events
