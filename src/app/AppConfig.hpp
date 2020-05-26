@@ -28,7 +28,7 @@ struct AppConfig {
     
     static void init();
 
-    static uint32_t CommonPin() { return 15; }
+    static uint32_t CommonPin() { return 97; }
 
     static bool HvControlEnabled() { return (bool)optionValues[HvControlEnabledId].i32; }
     static float HvControlTarget() { return optionValues[HvControlTargetId].f32; }

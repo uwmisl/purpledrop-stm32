@@ -34,10 +34,10 @@ void Comms::poll() {
     uint16_t msgLen;
     while(!mRxQueue->empty()) {
         if(mFramer.push(mRxQueue->pop(), msgBuf, msgLen)) {
-            printf("Got a message\n");
             ProcessMessage(msgBuf, msgLen);
         }
     }
+    PeriodicSend();
 }
 
 void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
@@ -47,14 +47,42 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
 
     switch(buf[0]) {
         case ParameterMsg::ID:
-            ParameterMsg msg;
-            events::SetParameter event;
-            msg.fill(buf, len);
-            event.paramIdx = msg.paramIdx;
-            event.paramValue.i32 = msg.paramValue.i32;
-            event.writeFlag = msg.writeFlag;
-            mBroker->publish(event);
+            {
+                ParameterMsg msg;
+                events::SetParameter event;
+                msg.fill(buf, len);
+                event.paramIdx = msg.paramIdx;
+                event.paramValue.i32 = msg.paramValue.i32;
+                event.writeFlag = msg.writeFlag;
+                mBroker->publish(event);
+            }
             break;
+        case ElectrodeEnableMsg::ID:
+            {
+                ElectrodeEnableMsg msg;
+                events::SetElectrodes event;
+                msg.fill(buf, len);
+                for(uint32_t i=0; i<AppConfig::N_HV507 * 8; i++) {
+                    event.values[i] = msg.values[i];
+                }
+                mBroker->publish(event);
+
+            }
+            break;
+        case SetPwmMsg::ID:
+            {
+                SetPwmMsg msg;
+                events::SetPwm event;
+                CommandAckMsg ack;
+                Serializer ser(mTxQueue);
+                msg.fill(buf, len);
+                event.channel = msg.channel;
+                event.duty_cycle = msg.duty_cycle;
+                mBroker->publish(event);
+                ack.acked_id = SetPwmMsg::ID;
+                ack.serialize(ser);
+                mFlush();
+            }
     }
 }
 
@@ -68,11 +96,11 @@ void Comms::HandleCapActive(CapActive &e) {
 }
 
 void Comms::HandleCapScan(CapScan &e) {
-    // Capacitance scan data is large, and is sent out in chunks to prevent 
+    // Capacitance scan data is large, and is sent out in chunks to prevent
     // blocking the communications channel for too long
-    // This is a hold-over from when this was done on a slower serial port, 
+    // This is a hold-over from when this was done on a slower serial port,
     // and is probably less of an issue with USB but it's more flexible this
-    // way. 
+    // way.
     for(uint32_t i=0; i<AppConfig::N_PINS; i++) {
         mCapScanData[i] = e.measurements[i];
     }
@@ -112,7 +140,6 @@ void Comms::HandleSetParameterAck(SetParameterAck &e) {
 void Comms::HandleTemperatureMeasurement(TemperatureMeasurement &e) {
     TemperatureMsg msg;
     Serializer ser(mTxQueue);
-    printf("Sending temps\n");
     msg.count = AppConfig::N_TEMP_SENSOR;
     for(uint32_t i=0; i<AppConfig::N_TEMP_SENSOR; i++) {
         msg.temps[i] = e.measurements[i];
@@ -122,20 +149,25 @@ void Comms::HandleTemperatureMeasurement(TemperatureMeasurement &e) {
 }
 
 void Comms::PeriodicSend() {
-    if(mCapScanTxPos >= AppConfig::N_PINS && mCapScanDataDirty) {
-        mCapScanDataDirty = false;
-        mCapScanTxPos = 0;
-    }
-    if(mCapScanTxPos < AppConfig::N_PINS) {
-        BulkCapacitanceMsg msg;
-        Serializer ser(mTxQueue);
-        msg.start_index = mCapScanTxPos;
-        msg.count = std::min(CapScanMsgSize, AppConfig::N_PINS - mCapScanTxPos);
-        for(uint32_t i=0; i<msg.count; i++) {
-            msg.values[i] = mCapScanData[i + msg.start_index];
+    if(mCapScanTimer.poll()) {
+        if((mCapScanTxPos >= AppConfig::N_PINS) && mCapScanDataDirty) {
+            mCapScanDataDirty = false;
+            mCapScanTxPos = 0;
         }
-        mCapScanTxPos += msg.count;
-        msg.serialize(ser);
-        mFlush();
+        if(mCapScanTxPos < AppConfig::N_PINS) {
+            BulkCapacitanceMsg msg;
+            Serializer ser(mTxQueue);
+            msg.start_index = mCapScanTxPos;
+            msg.count = AppConfig::N_PINS - mCapScanTxPos;
+            if(msg.count > CapScanMsgSize) {
+                msg.count = CapScanMsgSize;
+            }
+            for(uint32_t i=0; i<msg.count; i++) {
+                msg.values[i] = mCapScanData[i + msg.start_index];
+            }
+            mCapScanTxPos += msg.count;
+            msg.serialize(ser);
+            mFlush();
+        }
     }
 }

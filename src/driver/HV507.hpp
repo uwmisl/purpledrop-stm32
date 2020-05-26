@@ -22,13 +22,15 @@ using LE = GpioC13;
 using INT_RESET = GpioC2;
 using INT_VOUT = GpioA2;
 using GAIN_SEL = GpioC3;
+// Debug IO, useful for syncing scope capacitance scan
+using SCAN_SYNC = GpioC1;
 
 
 // Cycles between capacitance scans; must be even
 static const uint32_t SCAN_PERIOD = 500;
 static const auto BLANKING_DELAY = 14us;
 static const auto RESET_DELAY = 1000ns;
-static const auto SAMPLE_DELAY = 5000ns;
+static const auto SAMPLE_DELAY = 10us;
 
 template<uint32_t N_CHIPS = 2>
 class HV507 {
@@ -51,14 +53,30 @@ public:
 
         SPI::connect<SCK::Sck, MOSI::Mosi, GpioUnused::Miso>();
         SPI::initialize<SystemClock, 6000000>();
-        INT_RESET::set();
-        GAIN_SEL::reset();
+        SPI::setDataOrder(SPI::DataOrder::LsbFirst);
+        INT_RESET::setOutput(true);
+        GAIN_SEL::setOutput(false);
+        POL::setOutput(false);
+        BL::setOutput(false);
+        LE::setOutput(true);
+        POL::configure(Gpio::OutputType::PushPull);
+        BL::configure(Gpio::OutputType::PushPull);
+        LE::configure(Gpio::OutputType::PushPull);
+        INT_RESET::configure(Gpio::OutputType::PushPull);
+        GAIN_SEL::configure(Gpio::OutputType::PushPull);
+
+        calibrateOffset();
+
+        mSetElectrodesHandler.setFunction([this](auto &e) { setElectrodes(e.values); });
+        mBroker->registerHandler(&mSetElectrodesHandler);
     }
+
 
     // To be called by applicatin at 2x polarity frequency
     void drive();
 
     void setElectrodes(uint8_t electrodes[N_BYTES]) {
+        printf("Setting electrodes\n");
         for(uint32_t i=0; i<N_BYTES; i++) {
             mShiftReg[i] = electrodes[i];
         }
@@ -70,12 +88,15 @@ private:
     bool mShiftRegDirty = false;
     uint32_t mCyclesSinceScan;
     uint16_t mScanData[N_PINS];
+    uint16_t mOffsetCalibration;
+    EventEx::EventHandlerFunction<events::SetElectrodes> mSetElectrodesHandler;
     EventEx::EventBroker *mBroker;
     Analog *mAnalog;
 
     /* Perform capacitance scan of all electrodes*/
     void scan();
     void loadShiftRegister();
+    void calibrateOffset();
     SampleData sampleCapacitance();
 };
 
@@ -99,18 +120,15 @@ void HV507<N_CHIPS>::drive() {
     }
 
     if(!POL::read()) {
-        BL::reset();
-        POL::set();
+        BL::setOutput(false);
+        POL::setOutput(true);
         modm::delay(BLANKING_DELAY);
-        INT_RESET::reset();
-        modm::delay(RESET_DELAY);
-
         SampleData sample = sampleCapacitance();
         // Send active capacitance message
-        events::CapActive event(sample.sample0, sample.sample1);
+        events::CapActive event(sample.sample0 + mOffsetCalibration, sample.sample1);
         mBroker->publish(event);
     } else {
-        POL::reset();
+        POL::setOutput(false);
     }
 }
 
@@ -120,39 +138,44 @@ void HV507<N_CHIPS>::scan() {
     for(uint32_t i=0; i < N_BYTES - 1; i++) {
         SPI::transferBlocking(0);
     }
-    SPI::transferBlocking(1);
+    SPI::transferBlocking(0x80);
 
     // Convert SCK and MOSI pins from alternate function to outputs
     MOSI::setOutput(0);
     SCK::setOutput(0);
 
-    POL::reset();
-    BL::reset();
+    POL::setOutput(true);
+    BL::setOutput(false);
 
     modm::delay(200us);
 
+    SCAN_SYNC::setOutput(true);
     for(int32_t i=N_PINS-1; i >= 0; i--) {
+        // Skip the common top plate electrode
         if(i == (int)AppConfig::CommonPin()) {
-            // Skip the common top plate electrode
-            SCK::set();
+            SCK::setOutput(true);
             modm::delay(80ns);
-            SCK::reset();
+            SCK::setOutput(false);
             continue;
         }
+        LE::setOutput(false);
+        modm::delay(80ns);
+        LE::setOutput(true);
+        modm::delay(4000ns);
 
         SampleData sample = sampleCapacitance();
-        //printf("Writing to %ld (%lx)\n", i, (uint32_t)&mScanData[i]);
-        mScanData[i] = sample.sample1 - sample.sample0;
-        BL::reset();
-        SCK::set();
-        INT_RESET::set();
+        mScanData[i] = sample.sample1 - sample.sample0 - mOffsetCalibration;
+        // It can go negative an overflow; clip it to zero when that happens
+        if(mScanData[i] > 32767) {
+            mScanData[i] = 0;
+        }
+
+        BL::setOutput(false);
+        SCK::setOutput(true);
         modm::delay(80ns);
-        SCK::reset();
-        LE::reset();
-        modm::delay(80ns);
-        LE::set();
-        modm::delay(4000ns);
+        SCK::setOutput(false);
     }
+    SCAN_SYNC::setOutput(false);
 
     // Restore GPIOs to alternate fucntion
     SPI::connect<SCK::Sck, MOSI::Mosi, GpioUnused::Miso>();
@@ -164,10 +187,21 @@ void HV507<N_CHIPS>::scan() {
 template <uint32_t N_CHIPS>
 void HV507<N_CHIPS>::loadShiftRegister() {
     SPI::transferBlocking(mShiftReg, 0, N_BYTES);
-    LE::reset();
+    LE::setOutput(false);
     // Per datasheet, min LE pulse width is 80ns
     modm::delay(80ns);
-    LE::set();
+    LE::setOutput(true);
+}
+
+template <uint32_t N_CHIPS>
+void HV507<N_CHIPS>::calibrateOffset() {
+    static const uint32_t nSample = 100;
+    uint32_t accum = 0;
+    for(uint32_t i=0; i<nSample; i++) {
+        auto sample = sampleCapacitance();
+        accum += sample.sample1 - sample.sample0;
+    }
+    mOffsetCalibration = accum / nSample;
 }
 
 template <uint32_t N_CHIPS>
@@ -179,17 +213,18 @@ typename HV507<N_CHIPS>::SampleData HV507<N_CHIPS>::sampleCapacitance() {
     {
         modm::atomic::Lock lck;
         // Release the current integrator reset to begin measuring charge transfer
-        INT_RESET::reset();
+        INT_RESET::setOutput(false);
         modm::delay(RESET_DELAY);
         // Take an initial reading of integrator output -- the integrator does not
         // reset fully to 0V
         ret.sample0 = mAnalog->readIntVout();
         // Release the blanking signal, and allow time for active electrodes to
         // charge and current to settle back to zero
-        BL::set();
+        BL::setOutput(true);
         modm::delay(SAMPLE_DELAY);
         // Read voltage integrator
         ret.sample1 = mAnalog->readIntVout();
+        INT_RESET::setOutput(true);
     }
     return ret;
 }

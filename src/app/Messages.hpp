@@ -32,10 +32,24 @@
 struct ElectrodeEnableMsg {
     static const uint8_t ID = 0;
 
+    ElectrodeEnableMsg() : values{0} {}
+
     static int predictSize(uint8_t *buf, uint32_t length) {
         (void)buf;
         (void)length;
-        return 16;
+        return 17;
+    }
+
+    bool fill(uint8_t* buf, uint32_t length) {
+        if(length == 0 || (int)length != predictSize(buf, length)) {
+            return false;
+        }
+
+        for(int i=0; i<16; i++) {
+            values[i] = buf[i+1];
+        }
+
+        return true;
     }
 
     uint8_t values[16];
@@ -177,7 +191,7 @@ struct TemperatureMsg {
     static const uint8_t ID = 7;
     static const uint32_t MAX_COUNT = AppConfig::N_TEMP_SENSOR;
     uint8_t count; // Number
-    int16_t temps[MAX_COUNT];
+    int16_t temps[MAX_COUNT]; // degC * 100
 
     void serialize(Serializer &s) {
         if(count > MAX_COUNT) {
@@ -206,6 +220,26 @@ struct HvRegulatorMsg {
     }
 };
 
+struct SetPwmMsg {
+    static const uint8_t ID = 9;
+
+    static int predictSize(uint8_t *buf, uint32_t length) {
+        (void)buf;
+        (void)length);
+        return 4;
+    }
+
+    void fill(uint8_t *buf, uint32_t length) {
+        if(length >= 4) {
+            channel = buf[1];
+            duty_cycle = *((uint16_t*)&buf[2]);
+        }
+    }
+
+    uint8_t channel;
+    uint16_t duty_cycle;
+};
+
 #define PREDICT(msgname) case msgname::ID: \
     return msgname::predictSize(buf, length);
 
@@ -217,9 +251,10 @@ struct Messages {
         uint8_t id = buf[0];
 
         switch(id) {
-            PREDICT(ElectrodeEnableMsg)
             PREDICT(BulkCapacitanceMsg)
+            PREDICT(ElectrodeEnableMsg)
             PREDICT(ParameterMsg)
+            PREDICT(SetPwmMsg)
             default:
                 return -1;
         }

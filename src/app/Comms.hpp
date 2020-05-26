@@ -4,13 +4,18 @@
 #include "EventEx.hpp"
 #include "Events.hpp"
 #include "Messages.hpp"
+#include "PeriodicPollingTimer.hpp"
+
 using namespace EventEx;
 
 /** Application messaging interface
- * 
+ *
  * Provides bridge between events and serial messages
  */
 struct Comms {
+
+    Comms() : mCapScanTimer(CapScanTxPeriod * CapScanMsgSize / AppConfig::N_PINS) {}
+
     void init(
         EventBroker *broker,
         IConsumer<uint8_t> *rx_queue,
@@ -29,10 +34,12 @@ private:
 
     MessageFramer<Messages> mFramer;
 
+    PeriodicPollingTimer mCapScanTimer;
     uint16_t mCapScanData[AppConfig::N_PINS];
     uint32_t mCapScanTxPos;
     bool mCapScanDataDirty;
     static const uint32_t CapScanMsgSize = 8;
+    static const uint32_t CapScanTxPeriod = 100000;
 
     uint16_t mHvUpdateCounter;
     static const uint16_t HvMessageDivider = 10;

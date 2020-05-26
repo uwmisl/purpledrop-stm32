@@ -25,6 +25,10 @@ struct CapScan : public Event {
 
 struct ElectrodesUpdated : public Event {};
 
+struct SetElectrodes : public Event {
+    uint8_t values[AppConfig::N_HV507 * 8];
+};
+
 struct SetParameter : public Event {
     uint32_t paramIdx;
     ConfigOptionValue paramValue;
@@ -40,7 +44,10 @@ struct SetParameterAck : public Event {
     } paramValue;
 };
 
-struct SetElectrodes : public Event {};
+struct SetPwm : public Event {
+    uint8_t channel;
+    uint16_t duty_cycle;
+};
 
 struct TemperatureMeasurement : public Event {
     uint16_t measurements[AppConfig::N_TEMP_SENSOR];

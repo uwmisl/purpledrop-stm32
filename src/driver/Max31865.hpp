@@ -3,6 +3,8 @@
 #include <cstdlib>
 #include <cmath>
 
+using namespace std::chrono_literals;
+
 struct IMax31865 {
     virtual void init(float resist_ref) = 0;
     virtual float read_resistance() = 0;
@@ -45,13 +47,15 @@ struct Max31865 : IMax31865 {
         uint8_t txBuf[2];
         txBuf[0] = addr | (1<<7);
         txBuf[1] = value;
-        SPI::transferBlocking(txBuf, NULL, 2);
+        transfer(txBuf, NULL, 2);
     }
 
     void init(float resist_ref) {
         mResistRef = resist_ref;
         static const uint16_t LOW_THRESH = 0;
         static const uint16_t HIGH_THRESH = 0x7fff;
+
+        CS::setOutput(true);
         writeByte(Configuration, VBias | ConversionMode);
         writeByte(LowFaultThresholdMsb, (LOW_THRESH >> 8));
         writeByte(LowFaultThresholdLsb, LOW_THRESH & 0xff);
@@ -64,9 +68,9 @@ struct Max31865 : IMax31865 {
         uint8_t rxBuf[3];
         txBuf[0] = RtdHigh;
 
-        SPI::transferBlocking(txBuf, rxBuf, 3);
+        transfer(txBuf, rxBuf, 3);
 
-        uint16_t rawResistance = (rxBuf[2] << 8) + rxBuf[1];
+        uint16_t rawResistance = ((uint16_t)rxBuf[1] << 7) + (rxBuf[2] >> 1);
         float resistance = (float)rawResistance * mResistRef / 32768;
         return resistance;
     }
@@ -87,4 +91,11 @@ struct Max31865 : IMax31865 {
 
 private:
     float mResistRef;
+    void transfer(uint8_t *tx_buf, uint8_t *rx_buf, uint16_t length) {
+        CS::setOutput(false);
+        modm::delay(400ns);
+        SPI::transferBlocking(tx_buf, rx_buf, length);
+        CS::setOutput(true);
+    }
+
 };
