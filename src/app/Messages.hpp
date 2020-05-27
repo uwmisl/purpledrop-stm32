@@ -225,7 +225,7 @@ struct SetPwmMsg {
 
     static int predictSize(uint8_t *buf, uint32_t length) {
         (void)buf;
-        (void)length);
+        (void)length;
         return 4;
     }
 

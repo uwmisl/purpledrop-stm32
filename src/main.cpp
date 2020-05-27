@@ -41,6 +41,19 @@ PeriodicPollingTimer mainLoopTimer(1000, true);
 PwmOutput pwmOutput;
 
 using LoopTimingPin = GpioB11;
+using SwitchGreenPin = GpioC8;
+using SwitchRedPin = GpioA8;
+
+
+void update_switch_led(events::HvRegulatorUpdate &e) {
+    if(e.voltage < 15.0) {
+        SwitchRedPin::setOutput(true);
+    } else {
+        SwitchRedPin::setOutput(false);
+    }
+}
+EventEx::EventHandlerFunction<events::HvRegulatorUpdate> 
+switchUpdateHandler([](auto &e) { update_switch_led(e); });
 
 int main() {
     // Setup global peripheral register structs for use in debugger
@@ -56,6 +69,8 @@ int main() {
     hvRegulator.init(&broker, &analog);
     tempSensors.init(&broker);
     pwmOutput.init(&broker);
+
+    broker.registerHandler(&switchUpdateHandler);
 
     VCP_Setup(&USBRxBuffer, &USBTxBuffer);
     comms.init(&broker, &USBRxBuffer, &USBTxBuffer, &VCP_FlushTx);
