@@ -31,7 +31,16 @@ struct HvRegulator {
             float vcal = (float)vdiff/N_OVERSAMPLE * VSCALE;
             mVoltageMeasure = mVoltageMeasure * (1 - FILTER) + vcal * FILTER;
             if(AppConfig::HvControlEnabled()) {
-                // Do feedback control
+                float target = AppConfig::HvControlTarget();
+                // There's a 6% scale error. I don't know if this is consistent across boards,
+                // and I'm not sure where it comes from. For now I'm just kludging this here. 
+                const float SCALE_ADJ = 1./1.06;
+                output = target * SCALE_ADJ / VSCALE  + 1.22 * 4096./3.3;
+                // TODO: This is the expected value, but it actually depends on supply load, 
+                // resistors, op-amp offsets, etc. We can get better accuracy by putting some
+                // feedback around the measured voltage, but this needs to be done carefully 
+                // to avoid voltage overshoot. The HV output shouldn't ever go signifcantly 
+                // higher than its setpoint.
             } else {
                 output = AppConfig::HvControlOutput();
             }
