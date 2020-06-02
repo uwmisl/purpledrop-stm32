@@ -108,6 +108,7 @@ void Comms::HandleCapScan(CapScan &e) {
 }
 
 void Comms::HandleElectrodesUpdated(ElectrodesUpdated &e) {
+    (void)e;
     CommandAckMsg msg;
     Serializer ser(mTxQueue);
     msg.acked_id = ElectrodeEnableMsg::ID;
