@@ -149,8 +149,13 @@ void HV507<N_CHIPS>::scan() {
 
     modm::delay(200us);
 
-    SCAN_SYNC::setOutput(true);
+    
     for(int32_t i=N_PINS-1; i >= 0; i--) {
+        // Assert GPIO for test / debug
+        // Allows scope to trigger on desired channel
+        if(i == AppConfig::ScanSyncPin()) {
+            SCAN_SYNC::setOutput(true);        
+        }
         // Skip the common top plate electrode
         if(i == (int)AppConfig::CommonPin()) {
             SCK::setOutput(true);

@@ -10,6 +10,7 @@ enum ConfigOptionIds : uint8_t {
     HvControlEnabledId = 10,
     HvControlTargetId = 11,
     HvControlOutputId = 12,
+    ScanSyncPinId = 20,
 };
 
 union ConfigOptionValue {
@@ -33,6 +34,8 @@ struct AppConfig {
     static bool HvControlEnabled() { return (bool)optionValues[HvControlEnabledId].i32; }
     static float HvControlTarget() { return optionValues[HvControlTargetId].f32; }
     static int32_t HvControlOutput() { return optionValues[HvControlOutputId].i32; }
+
+    static int32_t ScanSyncPin() { return optionValues[ScanSyncPinId].i32; }
 
     // Number of options defined in options
     static const uint32_t N_OPT_DESCRIPTOR;
