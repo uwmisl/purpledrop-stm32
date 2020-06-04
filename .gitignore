@@ -1,8 +1,15 @@
 **/*.rs.bk
 .#*
+*.a
 .gdb_history
-Cargo.lock
-target/
+build/
+/modm/
+
+# Cmake outputs
+test/PurpleDropTest
+test/Makefile
+CMakeFiles
+CMakeCache.txt
 
 # editor files
 .vscode/*
@@ -10,3 +17,6 @@ target/
 !.vscode/*.svd
 !.vscode/launch.json
 !.vscode/tasks.json
+
+# debugging trace
+itm.txt

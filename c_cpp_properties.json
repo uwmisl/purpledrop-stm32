@@ -1,0 +1,18 @@
+{
+    "configurations": [
+        {
+            "name": "default",
+            "includePath": [
+                "./lib/CMSIS/Include/",
+                "./lib/CMSIS/Device/ST/STM32F4xx/Include/"
+            ],
+            "defines": [
+                "STM32F413_423xx", "USB_OTG_FS_CORE"
+            ],
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x86"
+        }
+    ],
+    "version": 4
+}
