@@ -11,6 +11,12 @@ enum ConfigOptionIds : uint8_t {
     HvControlTargetId = 11,
     HvControlOutputId = 12,
     ScanSyncPinId = 20,
+    ScanStartDelayId = 21,
+    ScanBlankDelayId = 22,
+    SampleDelayId = 23,
+    BlankingDelayId = 24,
+    IntegratorResetDelayId = 25,
+
 };
 
 union ConfigOptionValue {
@@ -36,6 +42,12 @@ struct AppConfig {
     static int32_t HvControlOutput() { return optionValues[HvControlOutputId].i32; }
 
     static int32_t ScanSyncPin() { return optionValues[ScanSyncPinId].i32; }
+    static int32_t ScanStartDelay() { return optionValues[ScanStartDelayId].i32; }
+    static int32_t ScanBlankDelay() { return optionValues[ScanBlankDelayId].i32; }
+    static int32_t SampleDelay() { return optionValues[SampleDelayId].i32; }
+    static int32_t BlankingDelay() { return optionValues[BlankingDelayId].i32; }
+    static int32_t IntegratorResetDelay() { return optionValues[IntegratorResetDelayId].i32; }
+
 
     // Number of options defined in options
     static const uint32_t N_OPT_DESCRIPTOR;

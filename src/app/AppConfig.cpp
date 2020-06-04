@@ -9,7 +9,12 @@ ConfigOptionDescriptor AppConfig::optionDescriptors[] = {
     INTOPT(HvControlEnabledId, 0),
     FLTOPT(HvControlTargetId, 200.0),
     INTOPT(HvControlOutputId, 120),
-    INTOPT(ScanSyncPinId, 0)
+    INTOPT(ScanSyncPinId, 0),
+    INTOPT(ScanStartDelayId, 200000),
+    INTOPT(ScanBlankDelayId, 4000),
+    INTOPT(SampleDelayId, 10000),
+    INTOPT(BlankingDelayId, 14000),
+    INTOPT(IntegratorResetDelayId, 1000)
 };
 
 const uint32_t AppConfig::N_OPT_DESCRIPTOR = sizeof(AppConfig::optionDescriptors) / sizeof(AppConfig::optionDescriptors[0]);

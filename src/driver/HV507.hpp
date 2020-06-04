@@ -28,9 +28,9 @@ using SCAN_SYNC = GpioC1;
 
 // Cycles between capacitance scans; must be even
 static const uint32_t SCAN_PERIOD = 500;
-static const auto BLANKING_DELAY = 14us;
-static const auto RESET_DELAY = 1000ns;
-static const auto SAMPLE_DELAY = 10us;
+// static const auto BLANKING_DELAY = 14us;
+// static const auto RESET_DELAY = 1000ns;
+// static const auto SAMPLE_DELAY = 10us;
 
 template<uint32_t N_CHIPS = 2>
 class HV507 {
@@ -122,7 +122,7 @@ void HV507<N_CHIPS>::drive() {
     if(!POL::read()) {
         BL::setOutput(false);
         POL::setOutput(true);
-        modm::delay(BLANKING_DELAY);
+        modm::delay(std::chrono::nanoseconds(AppConfig::BlankingDelay()));
         SampleData sample = sampleCapacitance();
         // Send active capacitance message
         events::CapActive event(sample.sample0 + mOffsetCalibration, sample.sample1);
@@ -147,9 +147,8 @@ void HV507<N_CHIPS>::scan() {
     POL::setOutput(true);
     BL::setOutput(false);
 
-    modm::delay(200us);
+    modm::delay(std::chrono::nanoseconds(AppConfig::ScanStartDelay()));
 
-    
     for(int32_t i=N_PINS-1; i >= 0; i--) {
         // Assert GPIO for test / debug
         // Allows scope to trigger on desired channel
@@ -166,7 +165,7 @@ void HV507<N_CHIPS>::scan() {
         LE::setOutput(false);
         modm::delay(80ns);
         LE::setOutput(true);
-        modm::delay(4000ns);
+        modm::delay(std::chrono::nanoseconds(AppConfig::ScanBlankDelay()));
 
         SampleData sample = sampleCapacitance();
         mScanData[i] = sample.sample1 - sample.sample0 - mOffsetCalibration;
@@ -219,14 +218,14 @@ typename HV507<N_CHIPS>::SampleData HV507<N_CHIPS>::sampleCapacitance() {
         modm::atomic::Lock lck;
         // Release the current integrator reset to begin measuring charge transfer
         INT_RESET::setOutput(false);
-        modm::delay(RESET_DELAY);
+        modm::delay(std::chrono::nanoseconds(AppConfig::IntegratorResetDelay()));
         // Take an initial reading of integrator output -- the integrator does not
         // reset fully to 0V
         ret.sample0 = mAnalog->readIntVout();
         // Release the blanking signal, and allow time for active electrodes to
         // charge and current to settle back to zero
         BL::setOutput(true);
-        modm::delay(SAMPLE_DELAY);
+        modm::delay(std::chrono::nanoseconds(AppConfig::SampleDelay()));
         // Read voltage integrator
         ret.sample1 = mAnalog->readIntVout();
         INT_RESET::setOutput(true);
