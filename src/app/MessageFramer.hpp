@@ -105,12 +105,7 @@ struct Serializer{
             mStarted = true;
         }
         mCs.push(b);
-        if(b == 0x7d || b == 0x7e) {
-            mSink->push(0x7d);
-            mSink->push(b ^ 0x20);
-        } else {
-            mSink->push(b);
-        }
+        send_with_escape(b);
         if(last) {
             finish();
         }
@@ -127,10 +122,19 @@ struct Serializer{
         }
     }
 
+    void send_with_escape(uint8_t b) {
+        if(b == 0x7d || b == 0x7e) {
+            mSink->push(0x7d);
+            mSink->push(b ^ 0x20);
+        } else {
+            mSink->push(b);
+        }
+    }
+
     void finish() {
         // Send the CRC
-        mSink->push(mCs.a);
-        mSink->push(mCs.b);
+        send_with_escape(mCs.a);
+        send_with_escape(mCs.b);
         // Setup to be re-used on a new packet
         mStarted = false;
         mCs.reset();
