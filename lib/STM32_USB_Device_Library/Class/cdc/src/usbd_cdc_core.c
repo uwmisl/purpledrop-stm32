@@ -85,9 +85,6 @@
   * @{
   */ 
 
-#define USB_CDC_IDLE         0
-#define USB_CDC_BUSY         1
-#define USB_CDC_ZLP          2
 
 /**
   * @}

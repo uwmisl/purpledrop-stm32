@@ -1,14 +1,14 @@
-/** USB Serial Port Driver using ST OTG library. 
- * 
- * Call VCP_Setup with circular buffers for Rx and Tx queues. 
- * 
- * All received data will be placed into the receive buffer. For sending data, 
- * call VCP_Send() in order to properly initiate a new USB transcation -- 
- * writing to the buffer is not sufficient. 
+/** USB Serial Port Driver using ST OTG library.
+ *
+ * Call VCP_Setup with circular buffers for Rx and Tx queues.
+ *
+ * All received data will be placed into the receive buffer. For sending data,
+ * call VCP_Send() in order to properly initiate a new USB transcation --
+ * writing to the buffer is not sufficient.
  */
 extern "C" {
     #include "usbd_desc.h"
-    #include "usbd_cdc_core_loopback.h"
+    #include "usbd_cdc_core.h"
     #include "usbd_usr.h"
 }
 
@@ -19,53 +19,50 @@ extern "C" {
 #define TX_BUF_SIZE CDC_DATA_MAX_PACKET_SIZE
 __ALIGN_BEGIN USB_OTG_CORE_HANDLE USB_OTG_dev __ALIGN_END;
 static volatile bool UsbConnected = false;
-static volatile bool TxActiveFlag = 0;
-static uint8_t Rxbuffer[RX_BUF_SIZE];
-static uint8_t Txbuffer[TX_BUF_SIZE];
+
+/* These are external variables imported from CDC core to be used for IN
+   transfer management. */
+extern uint8_t  APP_Rx_Buffer [];
+extern uint32_t APP_Rx_ptr_in;
+extern uint32_t APP_Rx_ptr_out;
+extern uint8_t USB_Tx_State;
 
 static IProducer<uint8_t> *RxQueue = NULL;
 static CircularBuffer<uint8_t> *TxQueue = NULL;
 
 void FillTx() {
+    // The USB-CDC driver has no API for transmitting.
+    // Instead, we manipulate its internal buffer variables,
+    // and it will start a transfer upon incoming SOF frames.
+
+    // One day, we could try the USB driver here:
+    // https://github.com/STMicroelectronics/STM32CubeF4, or some
+    // other open source driver that makes sense.
+
     if(!UsbConnected) {
         return;
     }
-    uint32_t count = 0;
-    while(!TxQueue->empty() && count < TX_BUF_SIZE) {
-        Txbuffer[count++] = TxQueue->pop();
+
+    NVIC_DisableIRQ(OTG_FS_IRQn);
+    if(USB_Tx_State == USB_CDC_IDLE) {
+        if(APP_Rx_ptr_out == APP_Rx_ptr_in) {
+            APP_Rx_ptr_out = 0;
+            APP_Rx_ptr_in = 0;
+        }
+        while(!TxQueue->empty() && APP_Rx_ptr_in < APP_RX_DATA_SIZE) {
+            uint8_t b = TxQueue->pop();
+            APP_Rx_Buffer[APP_Rx_ptr_in++] = b;
+        }
     }
-    if(count > 0) {
-        TxActiveFlag = true;
-        DCD_EP_Tx(&USB_OTG_dev, CDC_IN_EP, Txbuffer, count);
-    }
+    NVIC_EnableIRQ(OTG_FS_IRQn);
 }
 
 void VCP_FlushTx() {
-    if(!TxActiveFlag) {
-        FillTx();
-    }
+    FillTx();
 }
 
 void VCP_Reset() {
     TxQueue->clear();
-    TxActiveFlag = false;
-}
-
-/* send data function */
-uint32_t VCP_Send(uint8_t * pbuf, uint32_t buf_len, bool flush)
-{
-    uint32_t tx_count = 0;
-    while(tx_count < buf_len) {
-        if(!TxQueue->push(pbuf[tx_count])) {
-            break;
-        }
-        tx_count++;
-    }
-
-    // if(flush) {
-    //     VCP_FlushTx();
-    // }
-    return tx_count;
 }
 
 void VCP_Setup(IProducer<uint8_t> *rx_queue, CircularBuffer<uint8_t> *tx_queue)
@@ -76,38 +73,86 @@ void VCP_Setup(IProducer<uint8_t> *rx_queue, CircularBuffer<uint8_t> *tx_queue)
     USBD_Init(
         &USB_OTG_dev,
         USB_OTG_FS_CORE_ID,
-        &USR_desc, 
+        &USR_desc,
         &USBD_CDC_cb, // From ST cdc class driver
         &USR_cb
     );
-
-    DCD_DevConnect(&USB_OTG_dev);
-    // Prepare first receive
-    DCD_EP_PrepareRx(&USB_OTG_dev, CDC_OUT_EP, Rxbuffer, RX_BUF_SIZE);
 }
 
 extern "C" {
-    static uint16_t DataTxCb(void)
-    {
-        TxActiveFlag = false;
-        // Fill TX if there's data available, or do nothing if not
-        FillTx();
+    static uint16_t InitCb(void) {
+        UsbConnected = true;
+        TxQueue->clear();
         return USBD_OK;
     }
 
-    static uint16_t DataRxCb(uint32_t len)
-    {   
+    static uint16_t DeInitCb(void) {
+        UsbConnected = false;
+        return USBD_OK;
+    }
+
+    static uint16_t CtrlCb(uint32_t Cmd, uint8_t* Buf, uint32_t Len) {
+        (void)Buf;
+        (void)Len;
+        switch (Cmd)
+        {
+        case SEND_ENCAPSULATED_COMMAND:
+            printf("USB-CDC: SEND_ENCAPSULATED_COMMAND\n");
+            break;
+
+        case GET_ENCAPSULATED_RESPONSE:
+            printf("USB-CDC: GET_ENCAPSULATED_RESPONSE\n");
+            break;
+
+        case SET_COMM_FEATURE:
+            printf("USB-CDC: SET_COMM_FEATURE\n");
+            break;
+
+        case GET_COMM_FEATURE:
+            printf("USB-CDC: GET_COMM_FEATURE\n");
+            break;
+
+        case CLEAR_COMM_FEATURE:
+            printf("USB-CDC: CLEAR_COMM_FEATURE\n");
+            break;
+
+        case SET_LINE_CODING:
+            printf("USB-CDC: SET_LINE_CODING\n");
+            break;
+
+        case GET_LINE_CODING:
+            printf("USB-CDC: GET_LINE_CODING\n");
+            break;
+
+        case SET_CONTROL_LINE_STATE:
+            printf("USB-CDC: SET_CONTROL_LINE_STATE\n");
+            break;
+
+        case SEND_BREAK:
+            printf("USB-CDC: SEND_BREAK\n");
+            break;
+
+        default:
+            break;
+        }
+
+        return USBD_OK;
+    }
+
+    static uint16_t DataRxCb(uint8_t *buf, uint32_t len)
+    {
         // Copy data from working buffer to queue
         for(uint32_t i=0; i<len; i++) {
-            RxQueue->push(Rxbuffer[i]);
+            RxQueue->push(buf[i]);
         }
-        // Prepare for next receive
-        DCD_EP_PrepareRx(&USB_OTG_dev, CDC_OUT_EP, Rxbuffer, RX_BUF_SIZE);
         return USBD_OK;
     }
 
     CDC_IF_Prop_TypeDef VCP_fops = {
-        DataTxCb,
+        InitCb,
+        DeInitCb,
+        CtrlCb,
+        NULL,
         DataRxCb
     };
 }

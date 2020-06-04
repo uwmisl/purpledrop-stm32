@@ -45,7 +45,6 @@
 #define DEVICE_CLASS_CDC                        0x02
 #define DEVICE_SUBCLASS_CDC                     0x00
 
-
 #define USB_DEVICE_DESCRIPTOR_TYPE              0x01
 #define USB_CONFIGURATION_DESCRIPTOR_TYPE       0x02
 #define USB_STRING_DESCRIPTOR_TYPE              0x03
@@ -57,6 +56,10 @@
 #define CDC_DATA_IN_PACKET_SIZE                CDC_DATA_MAX_PACKET_SIZE
         
 #define CDC_DATA_OUT_PACKET_SIZE               CDC_DATA_MAX_PACKET_SIZE
+
+#define USB_CDC_IDLE         0
+#define USB_CDC_BUSY         1
+#define USB_CDC_ZLP          2
 
 /*---------------------------------------------------------------------*/
 /*  CDC definitions                                                    */

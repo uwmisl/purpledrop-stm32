@@ -32,7 +32,7 @@ file(GLOB APP_SOURCE_FILES
     ${USB}/src/usb_core.c
 	${USB}/src/usb_dcd_int.c
 	${USB}/src/usb_dcd.c
-	${USBD}/Class/cdc/src/usbd_cdc_core_loopback.c
+	${USBD}/Class/cdc/src/usbd_cdc_core.c
 	${USBD}/Core/src/usbd_core.c
 	${USBD}/Core/src/usbd_ioreq.c
 	${USBD}/Core/src/usbd_req.c)
