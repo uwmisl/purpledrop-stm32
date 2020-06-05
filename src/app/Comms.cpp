@@ -87,7 +87,6 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
             break;
         case DataBlobMsg::ID:
             {
-                printf("Got DataBlob\n");
                 DataBlobMsg msg;
                 msg.fill(buf, len);
                 if(msg.blob_id == DataBlobId::SoftwareVersionBlob) {
