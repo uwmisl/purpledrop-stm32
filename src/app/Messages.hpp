@@ -17,8 +17,7 @@
  *      framer to abandon parsing.
  *
  * 2.  `fill` takes a complete message payload and attempts to populate the
- *      message struct from the data contained there in. Messages should always
- *      copy the data, as the buffer may be re-used.
+ *      message struct from the data contained there in.
  *
  * 3.   `serialize` sends the message to the provided Serializer. No framing is
  *      done by the message. `serialize` just converts struct fields to payload
@@ -240,6 +239,59 @@ struct SetPwmMsg {
     uint16_t duty_cycle;
 };
 
+/** Used to request and return a string of bytes from the purpledrop
+ */
+enum DataBlobId : uint16_t {
+    SoftwareVersionBlob = 0
+};
+
+struct DataBlobMsg {
+    static const uint8_t ID = 10;
+    static const uint32_t MAX_SIZE = 250;
+
+    uint8_t blob_id;
+    uint8_t payload_size;
+    uint16_t chunk_index;
+    const uint8_t *data;
+
+    static int predictSize(uint8_t *buf, uint32_t length) {
+        if(length < 3) {
+            return 0;
+        }
+        return buf[2] + 5;
+    }
+
+    void fill(uint8_t *buf, uint32_t length) {
+        int32_t predicted_size = predictSize(buf, length);
+        if(predicted_size <= 0 || (int)length != predicted_size) {
+            blob_id = 0;
+            chunk_index = 0;
+            payload_size = 0;
+            data = 0;
+            return;
+        }
+        blob_id = buf[1];
+        payload_size = buf[2];
+        chunk_index = *((uint16_t*)&buf[3]);
+        data = &buf[5];
+    }
+
+    void serialize(Serializer &ser) {
+        uint8_t size = payload_size;
+        if(size > MAX_SIZE) {
+            size = MAX_SIZE;
+        }
+        ser.push(ID);
+        ser.push(blob_id);
+        ser.push(size);
+        ser.push(chunk_index);
+        for(uint32_t i=0; i<size; i++) {
+            ser.push(data[i]);
+        }
+        ser.finish();
+    }
+};
+
 #define PREDICT(msgname) case msgname::ID: \
     return msgname::predictSize(buf, length);
 
@@ -252,6 +304,7 @@ struct Messages {
 
         switch(id) {
             PREDICT(BulkCapacitanceMsg)
+            PREDICT(DataBlobMsg)
             PREDICT(ElectrodeEnableMsg)
             PREDICT(ParameterMsg)
             PREDICT(SetPwmMsg)

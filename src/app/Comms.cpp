@@ -1,6 +1,7 @@
 #include "Comms.hpp"
 #include "MessageFramer.hpp"
 #include "Messages.hpp"
+#include "version.hpp"
 
 using namespace events;
 
@@ -83,6 +84,17 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
                 ack.serialize(ser);
                 mFlush();
             }
+            break;
+        case DataBlobMsg::ID:
+            {
+                printf("Got DataBlob\n");
+                DataBlobMsg msg;
+                msg.fill(buf, len);
+                if(msg.blob_id == DataBlobId::SoftwareVersionBlob) {
+                    SendBlob(DataBlobId::SoftwareVersionBlob, (uint8_t*)VERSION_STRING, strlen(VERSION_STRING));
+                }
+            }
+            break;
     }
 }
 
@@ -171,4 +183,19 @@ void Comms::PeriodicSend() {
             mFlush();
         }
     }
+}
+
+void Comms::SendBlob(uint8_t blob_id, const uint8_t *buf, uint32_t size) {
+    // We don't handle multi-packet blobs yet
+    // In the future, for larger data blobs (e.g. Parameter descriptions) this
+    // needs to chunk them up, and queue for transmission over time. 
+
+    DataBlobMsg msg;
+    Serializer ser(mTxQueue);
+    msg.blob_id = blob_id;
+    msg.chunk_index = 0;
+    msg.payload_size = size;
+    msg.data = buf;
+    msg.serialize(ser);
+    mFlush();
 }
