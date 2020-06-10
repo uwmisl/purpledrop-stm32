@@ -9,6 +9,7 @@
     <option name="modm:build:project.name">purpledrop</option>
     <option name="modm:build:cmake:include_cmakelists">false</option>
     <option name="modm:build:cmake:include_makefile">false</option>
+    <option name="modm:platform:cortex-m:linkerscript.override">memory.ld</option>
     <option name="modm:stdc++:rtti">true</option>
   </options>
   <modules>
