@@ -34,14 +34,7 @@ struct SetParameter : public Event {
     ConfigOptionValue paramValue;
     // If set, this message is setting a param. If clear, this is requesting the current value.
     uint8_t writeFlag;
-};
-
-struct SetParameterAck : public Event {
-    uint32_t paramIdx;
-    union {
-        float f32;
-        int32_t i32;
-    } paramValue;
+    std::function<void(const uint32_t &idx, const ConfigOptionValue &paramValue)> callback;
 };
 
 struct SetPwm : public Event {

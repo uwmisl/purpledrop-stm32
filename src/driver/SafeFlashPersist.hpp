@@ -111,9 +111,8 @@ struct SafeFlashPersist {
             crc = UPDATECRC(dst_addr[i], crc);
         }
         flash::write(dst_addr + 8 + length, (uint8_t*)&crc, 4);
-
         // Now that we've fully written the new page, we mark the old page
-        // as invalid so that we will read the new one next time
+        // as invalid
         invalidate_page(page_to_invalidate);
         flash::lock();
 

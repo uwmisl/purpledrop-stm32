@@ -48,7 +48,6 @@ private:
     EventHandlerFunction<events::CapScan> mCapScanHandler;
     EventHandlerFunction<events::CapActive> mCapActiveHandler;
     EventHandlerFunction<events::ElectrodesUpdated> mElectrodesUpdatedHandler;
-    EventHandlerFunction<events::SetParameterAck> mSetParameterAckHandler;
     EventHandlerFunction<events::TemperatureMeasurement> mTemperatureMeasurementHandler;
     EventHandlerFunction<events::HvRegulatorUpdate> mHvRegulatorUpdateHandler;
 
@@ -56,7 +55,6 @@ private:
     void HandleCapActive(events::CapActive &e);
     void HandleCapScan(events::CapScan &e);
     void HandleElectrodesUpdated(events::ElectrodesUpdated &e);
-    void HandleSetParameterAck(events::SetParameterAck &e);
     void HandleTemperatureMeasurement(events::TemperatureMeasurement &e);
     void HandleHvRegulatorUpdate(events::HvRegulatorUpdate &e);
 

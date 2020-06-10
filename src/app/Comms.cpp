@@ -22,8 +22,6 @@ void Comms::init(
     mBroker->registerHandler(&mCapActiveHandler);
     mElectrodesUpdatedHandler.setFunction([this](auto &e) { HandleElectrodesUpdated(e); });
     mBroker->registerHandler(&mElectrodesUpdatedHandler);
-    mSetParameterAckHandler.setFunction([this](auto &e) { HandleSetParameterAck(e); });
-    mBroker->registerHandler(&mSetParameterAckHandler);
     mTemperatureMeasurementHandler.setFunction([this](auto &e) { HandleTemperatureMeasurement(e); });
     mBroker->registerHandler(&mTemperatureMeasurementHandler);
     mHvRegulatorUpdateHandler.setFunction([this](auto &e) { HandleHvRegulatorUpdate(e); });
@@ -47,15 +45,13 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
     }
 
     switch(buf[0]) {
-        case ParameterMsg::ID:
+        case DataBlobMsg::ID:
             {
-                ParameterMsg msg;
-                events::SetParameter event;
+                DataBlobMsg msg;
                 msg.fill(buf, len);
-                event.paramIdx = msg.paramIdx;
-                event.paramValue.i32 = msg.paramValue.i32;
-                event.writeFlag = msg.writeFlag;
-                mBroker->publish(event);
+                if(msg.blob_id == DataBlobId::SoftwareVersionBlob) {
+                    SendBlob(DataBlobId::SoftwareVersionBlob, (uint8_t*)VERSION_STRING, strlen(VERSION_STRING));
+                }
             }
             break;
         case ElectrodeEnableMsg::ID:
@@ -68,6 +64,26 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
                 }
                 mBroker->publish(event);
 
+            }
+            break;
+        case ParameterMsg::ID:
+            {
+                ParameterMsg msg;
+                events::SetParameter event;
+                msg.fill(buf, len);
+                event.paramIdx = msg.paramIdx;
+                event.paramValue.i32 = msg.paramValue.i32;
+                event.writeFlag = msg.writeFlag;
+                event.callback = [this](const uint32_t &idx, const ConfigOptionValue &value) {
+                    ParameterMsg msg;
+                    Serializer ser(mTxQueue);
+                    msg.paramIdx = idx;
+                    msg.paramValue.i32 = value.i32;
+                    msg.writeFlag = 0;
+                    msg.serialize(ser);
+                    mFlush();
+                };
+                mBroker->publish(event);
             }
             break;
         case SetPwmMsg::ID:
@@ -83,15 +99,6 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
                 ack.acked_id = SetPwmMsg::ID;
                 ack.serialize(ser);
                 mFlush();
-            }
-            break;
-        case DataBlobMsg::ID:
-            {
-                DataBlobMsg msg;
-                msg.fill(buf, len);
-                if(msg.blob_id == DataBlobId::SoftwareVersionBlob) {
-                    SendBlob(DataBlobId::SoftwareVersionBlob, (uint8_t*)VERSION_STRING, strlen(VERSION_STRING));
-                }
             }
             break;
     }
@@ -137,16 +144,6 @@ void Comms::HandleHvRegulatorUpdate(HvRegulatorUpdate &e) {
         msg.serialize(ser);
         mFlush();
     }
-}
-
-void Comms::HandleSetParameterAck(SetParameterAck &e) {
-    ParameterMsg msg;
-    Serializer ser(mTxQueue);
-    msg.paramIdx = e.paramIdx;
-    msg.paramValue.i32 = e.paramValue.i32;
-    msg.writeFlag = 0;
-    msg.serialize(ser);
-    mFlush();
 }
 
 void Comms::HandleTemperatureMeasurement(TemperatureMeasurement &e) {

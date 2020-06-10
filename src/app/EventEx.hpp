@@ -4,14 +4,15 @@
 
 /** Simple event publishing framework
  *
- * All allocation is done at the subscriber end, so that it is possible to the
- * library with no heap allocation.
+ * All allocation is done at the subscriber end, so that it is possible to use 
+ * the library with no heap allocation.
  *
  * An event may be any class inheriting from EventEx::Event.
  */
 namespace EventEx {
 
 struct Event {
+
 };
 
 struct Registerable {

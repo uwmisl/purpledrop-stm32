@@ -10,8 +10,8 @@ namespace flash {
   }
 
   void lock() {
-    FLASH->SR = 0;
-    FLASH->SR = (FLASH_CR_LOCK);
+    FLASH->CR = 0;
+    FLASH->CR = (FLASH_CR_LOCK);
   }
 
   void erase_sector(uint8_t sector) {
@@ -31,10 +31,11 @@ namespace flash {
 
     // Program mode, using u8 program size
     FLASH->CR = (0 << FLASH_CR_PSIZE_Pos);
-    FLASH->CR = FLASH_CR_PG;
+    FLASH->CR |= FLASH_CR_PG;
 
     for(uint32_t i=0; i<length; i++) {
       dst[i] = src[i];
+      while(FLASH->SR & FLASH_SR_BSY);
     }
 
     while(FLASH->SR & FLASH_SR_BSY);
