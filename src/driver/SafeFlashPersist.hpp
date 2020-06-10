@@ -100,22 +100,22 @@ struct SafeFlashPersist {
         if(length > dst_size - OVERHEAD_SIZE) {
             return false;
         }
+        flash::unlock();
         flash::erase_sector(dst_sector);
         header[0] = HEADER_WORD;
         header[1] = length + OVERHEAD_SIZE;
         flash::write(dst_addr, (uint8_t*)&header, 8);
-        dst_addr += 8;
-        flash::write(dst_addr, buf, length);
-        dst_addr += length;
+        flash::write(dst_addr + 8, buf, length);
         crc = 0xFFFFFFFF;
-        for(uint32_t i=0; i<length; i++) {
-            crc = UPDATECRC(buf[i], crc);
+        for(uint32_t i=0; i<length+8; i++) {
+            crc = UPDATECRC(dst_addr[i], crc);
         }
-        flash::write(dst_addr, (uint8_t*)&crc, 4);
+        flash::write(dst_addr + 8 + length, (uint8_t*)&crc, 4);
 
         // Now that we've fully written the new page, we mark the old page
         // as invalid so that we will read the new one next time
         invalidate_page(page_to_invalidate);
+        flash::lock();
 
         return true;
     }

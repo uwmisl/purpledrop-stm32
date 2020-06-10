@@ -16,16 +16,17 @@ void AppConfigController::init(EventEx::EventBroker *broker) {
     // This test of persistent storage is waiting on getting a custom linker
     // script that works with modm sorted out so that the flash sectors can
     // be set aside for it
-    // uint8_t *stored_data;
-    // uint32_t stored_length;
-    // uint32_t counter = 0;
-    // if(persist.read(&stored_data, &stored_length)) {
-    //     counter = *((uint32_t*)stored_data);
-    //     printf("Read back config %d", (int)counter);
-    // } else {
-    //     printf("Failed to read back config");
-    // }
-    // persist.write((uint8_t*)&counter, 4);
+    uint8_t *stored_data;
+    uint32_t stored_length;
+    uint32_t counter = 0;
+    if(persist.read(&stored_data, &stored_length)) {
+        counter = *((uint32_t*)stored_data);
+        printf("Read back config %d\n", (int)counter);
+    } else {
+        printf("Failed to read back config\n");
+    }
+    counter++;
+    persist.write((uint8_t*)&counter, 4);
 
     mBroker = broker;
 
