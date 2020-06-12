@@ -156,7 +156,7 @@ void HV507<N_CHIPS>::scan() {
             SCAN_SYNC::setOutput(true);        
         }
         // Skip the common top plate electrode
-        if(i == (int)AppConfig::CommonPin()) {
+        if(i == (int)AppConfig::TopPlatePin()) {
             SCK::setOutput(true);
             modm::delay(80ns);
             SCK::setOutput(false);

@@ -14,7 +14,8 @@ ConfigOptionDescriptor AppConfig::optionDescriptors[] = {
     INTOPT(ScanBlankDelayId, 4000),
     INTOPT(SampleDelayId, 10000),
     INTOPT(BlankingDelayId, 14000),
-    INTOPT(IntegratorResetDelayId, 1000)
+    INTOPT(IntegratorResetDelayId, 1000),
+    INTOPT(TopPlatePinId, 97)
 };
 
 const uint32_t AppConfig::N_OPT_DESCRIPTOR = sizeof(AppConfig::optionDescriptors) / sizeof(AppConfig::optionDescriptors[0]);

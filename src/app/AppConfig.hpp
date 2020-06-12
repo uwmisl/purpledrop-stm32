@@ -16,6 +16,7 @@ enum ConfigOptionIds : uint8_t {
     SampleDelayId = 23,
     BlankingDelayId = 24,
     IntegratorResetDelayId = 25,
+    TopPlatePinId = 30,
 
 };
 
@@ -35,8 +36,6 @@ struct AppConfig {
     
     static void init();
 
-    static uint32_t CommonPin() { return 97; }
-
     static bool HvControlEnabled() { return (bool)optionValues[HvControlEnabledId].i32; }
     static float HvControlTarget() { return optionValues[HvControlTargetId].f32; }
     static int32_t HvControlOutput() { return optionValues[HvControlOutputId].i32; }
@@ -48,6 +47,7 @@ struct AppConfig {
     static int32_t BlankingDelay() { return optionValues[BlankingDelayId].i32; }
     static int32_t IntegratorResetDelay() { return optionValues[IntegratorResetDelayId].i32; }
 
+    static int32_t TopPlatePin() { return optionValues[TopPlatePinId].i32; }
 
     // Number of options defined in options
     static const uint32_t N_OPT_DESCRIPTOR;
