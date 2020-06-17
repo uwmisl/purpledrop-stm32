@@ -137,6 +137,7 @@ void Comms::HandleElectrodesUpdated(ElectrodesUpdated &e) {
 void Comms::HandleHvRegulatorUpdate(HvRegulatorUpdate &e) {
     mHvUpdateCounter++;
     if(mHvUpdateCounter >= HvMessageDivider) {
+        mHvUpdateCounter = 0;
         HvRegulatorMsg msg;
         Serializer ser(mTxQueue);
         msg.voltage = e.voltage;
