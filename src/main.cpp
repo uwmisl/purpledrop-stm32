@@ -27,7 +27,7 @@ extern "C" {
 using namespace modm::platform;
 using namespace modm::literals;
 
-StaticCircularBuffer<uint8_t, 512> USBTxBuffer;
+StaticCircularBuffer<uint8_t, 4096> USBTxBuffer;
 StaticCircularBuffer<uint8_t, 512> USBRxBuffer;
 
 Analog analog;
