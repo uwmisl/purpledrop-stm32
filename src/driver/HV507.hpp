@@ -24,7 +24,7 @@ using INT_VOUT = GpioA2;
 using GAIN_SEL = GpioC3;
 // Debug IO, useful for syncing scope capacitance scan
 using SCAN_SYNC = GpioC1;
-
+using AUGMENT_ENABLE = GpioA3;
 
 // Cycles between capacitance scans; must be even
 static const uint32_t SCAN_PERIOD = 500;
@@ -56,6 +56,7 @@ public:
         SPI::setDataOrder(SPI::DataOrder::LsbFirst);
         INT_RESET::setOutput(true);
         GAIN_SEL::setOutput(false);
+        AUGMENT_ENABLE::setOutput(false);
         POL::setOutput(false);
         BL::setOutput(false);
         LE::setOutput(true);
@@ -76,7 +77,6 @@ public:
     void drive();
 
     void setElectrodes(uint8_t electrodes[N_BYTES]) {
-        printf("Setting electrodes\n");
         for(uint32_t i=0; i<N_BYTES; i++) {
             mShiftReg[i] = electrodes[i];
         }
@@ -122,12 +122,20 @@ void HV507<N_CHIPS>::drive() {
     if(!POL::read()) {
         BL::setOutput(false);
         POL::setOutput(true);
+        // small delay before enabling augment FET to avoid shoot through current
+        modm::delay(50ns);
+        if(AppConfig::AugmentTopPlateLowSide()) {
+            AUGMENT_ENABLE::setOutput(true);
+        }
         modm::delay(std::chrono::nanoseconds(AppConfig::BlankingDelay()));
         SampleData sample = sampleCapacitance();
         // Send active capacitance message
         events::CapActive event(sample.sample0 + mOffsetCalibration, sample.sample1);
         mBroker->publish(event);
     } else {
+        AUGMENT_ENABLE::setOutput(false);
+        // small delay to avoid shoot through current
+        modm::delay(50ns);
         POL::setOutput(false);
     }
 }

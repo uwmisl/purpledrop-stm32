@@ -16,6 +16,7 @@ enum ConfigOptionIds : uint8_t {
     SampleDelayId = 23,
     BlankingDelayId = 24,
     IntegratorResetDelayId = 25,
+    AugmentTopPlateLowSideId = 26,
     TopPlatePinId = 30,
 
 };
@@ -46,6 +47,7 @@ struct AppConfig {
     static int32_t SampleDelay() { return optionValues[SampleDelayId].i32; }
     static int32_t BlankingDelay() { return optionValues[BlankingDelayId].i32; }
     static int32_t IntegratorResetDelay() { return optionValues[IntegratorResetDelayId].i32; }
+    static bool AugmentTopPlateLowSide() { return (bool)optionValues[AugmentTopPlateLowSideId].i32; }
 
     static int32_t TopPlatePin() { return optionValues[TopPlatePinId].i32; }
 

@@ -15,6 +15,7 @@ ConfigOptionDescriptor AppConfig::optionDescriptors[] = {
     INTOPT(SampleDelayId, 10000),
     INTOPT(BlankingDelayId, 14000),
     INTOPT(IntegratorResetDelayId, 1000),
+    INTOPT(AugmentTopPlateLowSideId, 0),
     INTOPT(TopPlatePinId, 97)
 };
 
