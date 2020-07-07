@@ -25,6 +25,27 @@ struct CapScan : public Event {
 
 struct ElectrodesUpdated : public Event {};
 
+struct SetGain : public Event {
+    SetGain() : data{0} {}
+
+    uint8_t data[(AppConfig::N_PINS + 3) / 4];
+
+    uint8_t get_channel(uint8_t channel) {
+        uint32_t offset = channel / 4;
+        uint32_t shift = (channel % 4) * 2;
+        return (data[offset] >> shift) & 0x3;
+    }
+
+    void set_channel(uint8_t channel, uint8_t value) {
+        uint32_t offset = channel / 4;
+        uint32_t shift = (channel % 4) * 2;
+        if(offset < sizeof(data)/sizeof(data[0])) {
+            data[offset] &= ~(0x3 << shift);
+            data[offset] |= (value & 0x3) << shift;
+        }
+    }
+};
+
 struct SetElectrodes : public Event {
     uint8_t values[AppConfig::N_HV507 * 8];
 };

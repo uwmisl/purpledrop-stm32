@@ -292,6 +292,41 @@ struct DataBlobMsg {
     }
 };
 
+struct SetGainMsg {
+    static const uint8_t ID = 11;
+    static const uint8_t MAX_COUNT = 128;
+    uint8_t count;
+    uint8_t data[(MAX_COUNT+3)/4];
+    SetGainMsg() : count(0), data{0} {}
+
+    static int predictSize(uint8_t *buf, uint32_t length) {
+        (void)buf;
+        if(length < 2) {
+            return 0;
+        } else {
+            return (buf[1] + 3) / 4;
+        }
+    }
+
+    bool fill(uint8_t* buf, uint32_t length) {
+        if(length == 0 || (int)length != predictSize(buf, length)) {
+            return false;
+        }
+
+        count = buf[0];
+        for(uint32_t i=0; i<count && i <MAX_COUNT; i++) {
+            data[i] = buf[i+1];
+        }
+        return true;
+    }
+
+    uint8_t get_channel(uint8_t channel) {
+        uint32_t offset = channel / 4;
+        uint32_t shift = (channel % 4) * 2;
+        return (data[offset] >> shift) & 0x3;
+    }
+};
+
 #define PREDICT(msgname) case msgname::ID: \
     return msgname::predictSize(buf, length);
 

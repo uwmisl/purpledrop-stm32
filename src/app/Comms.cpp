@@ -86,6 +86,22 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
                 mBroker->publish(event);
             }
             break;
+        case SetGainMsg::ID:
+            {
+                SetGainMsg msg;
+                CommandAckMsg ack;
+                events::SetGain event;
+                Serializer ser(mTxQueue);
+                msg.fill(buf, len);
+                for(uint32_t i=0; i<msg.count; i++) {
+                    event.set_channel(i, msg.get_channel(i));
+                }
+                mBroker->publish(event);
+                ack.acked_id = SetGainMsg::ID;
+                ack.serialize(ser);
+                mFlush();
+            }
+            break;
         case SetPwmMsg::ID:
             {
                 SetPwmMsg msg;

@@ -38,6 +38,11 @@ public:
     static const uint32_t N_PINS = N_CHIPS * 64;
     static const uint32_t N_BYTES = N_CHIPS * 8;
 
+    enum GainSetting {
+        HIGH = 0,
+        LOW = 1
+    };
+
     struct SampleData {
         uint16_t sample0; // starting value
         uint16_t sample1; // final value
@@ -49,6 +54,7 @@ public:
         mCyclesSinceScan = 0;
         for(uint32_t i=0; i<N_BYTES; i++) {
             mShiftReg[i] = 0;
+            mLowGainFlags[i] = 0;
         }
 
         SPI::connect<SCK::Sck, MOSI::Mosi, GpioUnused::Miso>();
@@ -89,7 +95,9 @@ private:
     uint32_t mCyclesSinceScan;
     uint16_t mScanData[N_PINS];
     uint16_t mOffsetCalibration;
+    uint8_t mLowGainFlags[N_BYTES];
     EventEx::EventHandlerFunction<events::SetElectrodes> mSetElectrodesHandler;
+    EventEx::EventHandlerFunction<events::SetGain> mSetGainHandler;
     EventEx::EventBroker *mBroker;
     Analog *mAnalog;
 
@@ -98,6 +106,8 @@ private:
     void loadShiftRegister();
     void calibrateOffset();
     SampleData sampleCapacitance();
+    void handleSetGain(events::SetGain &e);
+    GainSetting getGain(uint32_t channel);
 };
 
 template <uint32_t N_CHIPS>
@@ -163,6 +173,11 @@ void HV507<N_CHIPS>::scan() {
         if(i == AppConfig::ScanSyncPin()) {
             SCAN_SYNC::setOutput(true);        
         }
+        if(getGain(i) == GainSetting::LOW) {
+            GAIN_SEL::setOutput(true);
+        } else {
+            GAIN_SEL::setOutput(false);
+        }
         // Skip the common top plate electrode
         if(i == (int)AppConfig::TopPlatePin()) {
             SCK::setOutput(true);
@@ -189,6 +204,8 @@ void HV507<N_CHIPS>::scan() {
     }
     SCAN_SYNC::setOutput(false);
 
+    // Restore gain setting to normally high gain
+    GAIN_SEL::setOutput(false);
     // Restore GPIOs to alternate fucntion
     SPI::connect<SCK::Sck, MOSI::Mosi, GpioUnused::Miso>();
     // Restore shift register values
@@ -240,3 +257,30 @@ typename HV507<N_CHIPS>::SampleData HV507<N_CHIPS>::sampleCapacitance() {
     }
     return ret;
 }
+
+template <uint32_t N_CHIPS>
+void HV507<N_CHIPS>::handleSetGain(events::SetGain &e) {
+    for(uint32_t i=0; i<N_PINS; i++) {
+        uint32_t offset = i / 8;
+        uint32_t bit = i % 8;
+        uint8_t gain = e.get_channel(i);
+        if(gain == GainSetting::LOW) {
+            mLowGainFlags[offset] &= ~(1<<bit);
+        } else {
+            mLowGainFlags[offset] |= 1<<bit;
+        }
+    }
+}
+
+template <uint32_t N_CHIPS>
+typename HV507<N_CHIPS>::GainSetting
+HV507<N_CHIPS>::getGain(uint32_t chan) {
+    uint32_t offset = chan / 8;
+    uint32_t bit = chan % 8;
+    if((mLowGainFlags[offset] & (1<<bit)) != 0) {
+        return GainSetting::HIGH;
+    } else {
+        return GainSetting::LOW;
+    }
+} 
+
