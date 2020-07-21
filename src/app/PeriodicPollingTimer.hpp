@@ -19,7 +19,8 @@ struct PeriodicPollingTimer {
     }
     bool poll() {
         uint32_t curTime = modm::chrono::micro_clock::now().time_since_epoch().count();
-        if(curTime >= mNextTime) {
+
+        if(curTime >= mNextTime || mNextTime - curTime > (1UL << 31)) {
             mNextTime += mPeriod;
             // In drop-on-overrun mode, we don't accumulate events if we have a bubble
             // between poll calls
