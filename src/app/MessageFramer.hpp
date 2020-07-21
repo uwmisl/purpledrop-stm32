@@ -59,6 +59,7 @@ struct MessageFramer {
 
         int expected_size = TParser::predictSize(mBuf, mCount);
         if(expected_size == -1) {
+            printf("Got unexpected message type %d\n", mBuf[0]);
             // It's not a valid message
             reset();
         } else if(expected_size > 0 && mCount >= expected_size + 2) {
@@ -69,6 +70,7 @@ struct MessageFramer {
                 reset();
                 return true;
             } else {
+                printf("Got bad checksum\n");
                 reset();
             }
         }
