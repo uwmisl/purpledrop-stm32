@@ -295,8 +295,9 @@ struct DataBlobMsg {
 struct SetGainMsg {
     static const uint8_t ID = 11;
     static const uint8_t MAX_COUNT = 128;
+    static const uint8_t MAX_BYTES = (MAX_COUNT+3) / 4; // round up
     uint8_t count;
-    uint8_t data[(MAX_COUNT+3)/4];
+    uint8_t data[MAX_BYTES];
     SetGainMsg() : count(0), data{0} {}
 
     static int predictSize(uint8_t *buf, uint32_t length) {
@@ -304,7 +305,7 @@ struct SetGainMsg {
         if(length < 2) {
             return 0;
         } else {
-            return (buf[1] + 3) / 4;
+            return 2 + (buf[1] + 3) / 4;
         }
     }
 
@@ -313,9 +314,9 @@ struct SetGainMsg {
             return false;
         }
 
-        count = buf[0];
-        for(uint32_t i=0; i<count && i <MAX_COUNT; i++) {
-            data[i] = buf[i+1];
+        count = buf[1];
+        for(uint32_t i=0; i<count && i <MAX_COUNT; i+=4) {
+            data[i/4] = buf[i/4+2];
         }
         return true;
     }
@@ -342,6 +343,7 @@ struct Messages {
             PREDICT(DataBlobMsg)
             PREDICT(ElectrodeEnableMsg)
             PREDICT(ParameterMsg)
+            PREDICT(SetGainMsg)
             PREDICT(SetPwmMsg)
             default:
                 return -1;

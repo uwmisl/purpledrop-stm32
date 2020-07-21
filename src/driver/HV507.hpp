@@ -76,6 +76,8 @@ public:
 
         mSetElectrodesHandler.setFunction([this](auto &e) { setElectrodes(e.values); });
         mBroker->registerHandler(&mSetElectrodesHandler);
+        mSetGainHandler.setFunction([this](auto &e) { handleSetGain(e); });
+        mBroker->registerHandler(&mSetGainHandler);
     }
 
 
@@ -265,9 +267,9 @@ void HV507<N_CHIPS>::handleSetGain(events::SetGain &e) {
         uint32_t bit = i % 8;
         uint8_t gain = e.get_channel(i);
         if(gain == GainSetting::LOW) {
-            mLowGainFlags[offset] &= ~(1<<bit);
-        } else {
             mLowGainFlags[offset] |= 1<<bit;
+        } else {
+            mLowGainFlags[offset] &= ~(1<<bit);
         }
     }
 }
@@ -278,9 +280,9 @@ HV507<N_CHIPS>::getGain(uint32_t chan) {
     uint32_t offset = chan / 8;
     uint32_t bit = chan % 8;
     if((mLowGainFlags[offset] & (1<<bit)) != 0) {
-        return GainSetting::HIGH;
-    } else {
         return GainSetting::LOW;
+    } else {
+        return GainSetting::HIGH;
     }
 } 
 
