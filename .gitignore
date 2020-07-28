@@ -15,6 +15,7 @@ test/Makefile
 CMakeFiles
 CMakeCache.txt
 src/version.cpp
+__pycache__
 
 # editor files
 .vscode/*
