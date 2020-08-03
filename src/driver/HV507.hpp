@@ -208,6 +208,8 @@ void HV507<N_CHIPS>::scan() {
 
     // Restore gain setting to normally high gain
     GAIN_SEL::setOutput(false);
+    // Restore blank signal to inactive state
+    BL::setOutput(true);
     // Restore GPIOs to alternate fucntion
     SPI::connect<SCK::Sck, MOSI::Mosi, GpioUnused::Miso>();
     // Restore shift register values
