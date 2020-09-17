@@ -1,8 +1,9 @@
 # PurpleDrop STM32 Software Releases
 
-## 0.1.0 (2020-06-12)
+## x.x.x (TBD/pending)
 
-First release
+- Update parameter persistence so that new parameters get properly initialized with defaults
+- Add separate sample delay for low gain (i.e. large) electrodes
 
 ## 0.2.0 (2020-07-29)
 
@@ -10,3 +11,8 @@ First release
 - Add support for driving low-side augment FET on top plate
 - Support setting low gain on select electrodes during capacitance scan
 - Adds DFU programming file generation for USB firmware update
+
+## 0.1.0 (2020-06-12)
+
+First release
+
