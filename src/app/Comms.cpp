@@ -47,6 +47,21 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
     }
 
     switch(buf[0]) {
+        case CalibrateCommandMsg::ID:
+            {
+                CalibrateCommandMsg msg;
+                CommandAckMsg ack;
+                Serializer ser(mTxQueue);
+                msg.fill(buf, len);
+                if(msg.command == CalibrateCommandMsg::CommandType::CapacitanceOffset) {
+                    events::CapOffsetCalibrationRequest event;
+                    mBroker->publish(event);    
+                }
+                ack.acked_id = CalibrateCommandMsg::ID;
+                ack.serialize(ser);
+                mFlush();
+            }
+            break;
         case DataBlobMsg::ID:
             {
                 DataBlobMsg msg;

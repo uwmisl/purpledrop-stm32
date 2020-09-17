@@ -4,6 +4,9 @@
 
 - Update parameter persistence so that new parameters get properly initialized with defaults
 - Add separate sample delay for low gain (i.e. large) electrodes
+- Add command to recalibrate the capacitance offset
+
+NOTE: Loading this and later versions will overwrite old saved parameters with new defaults. 
 
 ## 0.2.0 (2020-07-29)
 

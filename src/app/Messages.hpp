@@ -385,6 +385,31 @@ struct ParameterDescriptorMsg {
     }
 };
 
+struct CalibrateCommandMsg {
+    static const uint8_t ID = 13;
+
+    enum CommandType : uint8_t {
+        CapacitanceOffset = 0
+    };
+    
+    uint8_t command;
+
+    static int predictSize(uint8_t *buf, uint32_t length) {
+        (void)buf;
+        (void)length;
+        return 2;
+    }
+
+    bool fill(uint8_t *buf, uint32_t length) {
+        if(length < 2) {
+            return false;
+        } else {
+            command = buf[1];
+            return true;
+        }
+    }
+};
+
 #define PREDICT(msgname) case msgname::ID: \
     return msgname::predictSize(buf, length);
 
@@ -397,6 +422,7 @@ struct Messages {
 
         switch(id) {
             PREDICT(BulkCapacitanceMsg)
+            PREDICT(CalibrateCommandMsg)
             PREDICT(DataBlobMsg)
             PREDICT(ElectrodeEnableMsg)
             PREDICT(ParameterDescriptorMsg)

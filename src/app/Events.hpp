@@ -19,6 +19,8 @@ struct CapActive : public Event {
     uint16_t measurement; // Final voltage value
 };
 
+struct CapOffsetCalibrationRequest : public Event {}; 
+
 struct CapScan : public Event {
     const uint16_t *measurements; // Size is N_HV507 * 64
 };

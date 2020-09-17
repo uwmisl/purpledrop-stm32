@@ -32,6 +32,12 @@ static const uint32_t SCAN_PERIOD = 500;
 // static const auto RESET_DELAY = 1000ns;
 // static const auto SAMPLE_DELAY = 10us;
 
+enum CalibrateStep : uint8_t {
+    CALSTEP_NONE = 0,
+    CALSTEP_REQUEST = 2,
+    CALSTEP_SETTLE = 3
+};
+
 template<uint32_t N_CHIPS = 2>
 class HV507 {
 public:
@@ -52,6 +58,7 @@ public:
         mBroker = broker;
         mAnalog = analog;
         mCyclesSinceScan = 0;
+        mCalibrateStep = CALSTEP_NONE;
         for(uint32_t i=0; i<N_BYTES; i++) {
             mShiftReg[i] = 0;
             mLowGainFlags[i] = 0;
@@ -78,6 +85,8 @@ public:
         mBroker->registerHandler(&mSetElectrodesHandler);
         mSetGainHandler.setFunction([this](auto &e) { handleSetGain(e); });
         mBroker->registerHandler(&mSetGainHandler);
+        mCapOffsetCalibrationRequestHandler.setFunction([this](auto &) { this->mCalibrateStep = CALSTEP_REQUEST; });
+        mBroker->registerHandler(&mCapOffsetCalibrationRequestHandler);
     }
 
 
@@ -99,8 +108,10 @@ private:
     uint16_t mOffsetCalibration;
     uint16_t mOffsetCalibrationLowGain;
     uint8_t mLowGainFlags[N_BYTES];
+    uint8_t mCalibrateStep;
     EventEx::EventHandlerFunction<events::SetElectrodes> mSetElectrodesHandler;
     EventEx::EventHandlerFunction<events::SetGain> mSetGainHandler;
+    EventEx::EventHandlerFunction<events::CapOffsetCalibrationRequest> mCapOffsetCalibrationRequestHandler;
     EventEx::EventBroker *mBroker;
     Analog *mAnalog;
 
@@ -111,13 +122,26 @@ private:
     SampleData sampleCapacitance(uint32_t sample_delay_ns, bool fire_sync_pulse);
     void handleSetGain(events::SetGain &e);
     GainSetting getGain(uint32_t channel);
+    void setPolarity(bool pol);
 };
 
 template <uint32_t N_CHIPS>
 void HV507<N_CHIPS>::drive() {
     mCyclesSinceScan++;
 
-    if(mCyclesSinceScan == SCAN_PERIOD) {
+    if(mCalibrateStep == CALSTEP_REQUEST) {
+        // When requested, setup the correct polarity, then allow a cycle to stabilize
+        setPolarity(true);
+        BL::setOutput(false);
+        mCalibrateStep = CALSTEP_SETTLE;
+        return;
+    } else if(mCalibrateStep == CALSTEP_SETTLE) {
+        // Previouse cycle we did setup, now measure the offset
+        calibrateOffset();
+        mCalibrateStep = CALSTEP_NONE;
+    }
+
+    if(mCyclesSinceScan >= SCAN_PERIOD) {
         mCyclesSinceScan = 0;
         scan();
         events::CapScan event;
@@ -134,12 +158,7 @@ void HV507<N_CHIPS>::drive() {
 
     if(!POL::read()) {
         BL::setOutput(false);
-        POL::setOutput(true);
-        // small delay before enabling augment FET to avoid shoot through current
-        modm::delay(50ns);
-        if(AppConfig::AugmentTopPlateLowSide()) {
-            AUGMENT_ENABLE::setOutput(true);
-        }
+        setPolarity(true);
         modm::delay(std::chrono::nanoseconds(AppConfig::BlankingDelay()));
         // Scan sync pin -1 causes sync pulse on active capacitance measurement
         bool fire_sync_pulse = AppConfig::ScanSyncPin() == -1;
@@ -148,10 +167,7 @@ void HV507<N_CHIPS>::drive() {
         events::CapActive event(sample.sample0 + mOffsetCalibration, sample.sample1);
         mBroker->publish(event);
     } else {
-        AUGMENT_ENABLE::setOutput(false);
-        // small delay to avoid shoot through current
-        modm::delay(50ns);
-        POL::setOutput(false);
+        setPolarity(false);
     }
 }
 
@@ -169,7 +185,7 @@ void HV507<N_CHIPS>::scan() {
     MOSI::setOutput(0);
     SCK::setOutput(0);
 
-    POL::setOutput(true);
+    setPolarity(true);
     BL::setOutput(false);
 
     modm::delay(std::chrono::nanoseconds(AppConfig::ScanStartDelay()));
@@ -310,4 +326,22 @@ HV507<N_CHIPS>::getGain(uint32_t chan) {
         return GainSetting::HIGH;
     }
 } 
+
+template <uint32_t N_CHIPS>
+void HV507<N_CHIPS>::setPolarity(bool pol) {
+    if(pol) {
+        POL::setOutput(true);
+        // small delay before enabling augment FET to avoid shoot through current
+        // Delay always performed so that augment enable doesn't change timing
+        modm::delay(50ns);
+        if(AppConfig::AugmentTopPlateLowSide()) {
+            AUGMENT_ENABLE::setOutput(true);
+        }
+    } else {
+        AUGMENT_ENABLE::setOutput(false);
+        // small delay to avoid shoot through current
+        modm::delay(50ns);
+        POL::setOutput(false);
+    }
+}
 
