@@ -17,8 +17,8 @@ enum ConfigOptionIds : uint8_t {
     BlankingDelayId = 24,
     IntegratorResetDelayId = 25,
     AugmentTopPlateLowSideId = 26,
-    TopPlatePinId = 30,
-
+    SampleDelayLowGainId = 27,
+    TopPlatePinId = 30,\
 };
 
 union ConfigOptionValue {
@@ -47,6 +47,7 @@ struct AppConfig {
     static int32_t ScanStartDelay() { return optionValues[ScanStartDelayId].i32; }
     static int32_t ScanBlankDelay() { return optionValues[ScanBlankDelayId].i32; }
     static int32_t SampleDelay() { return optionValues[SampleDelayId].i32; }
+    static int32_t SampleDelayLowGain() { return optionValues[SampleDelayLowGainId].i32; }
     static int32_t BlankingDelay() { return optionValues[BlankingDelayId].i32; }
     static int32_t IntegratorResetDelay() { return optionValues[IntegratorResetDelayId].i32; }
     static bool AugmentTopPlateLowSide() { return (bool)optionValues[AugmentTopPlateLowSideId].i32; }
@@ -60,7 +61,6 @@ struct AppConfig {
     static ConfigOptionDescriptor optionDescriptors[];
     // Trade some memory for access speed
     static ConfigOptionValue optionValues[MAX_OPT_ID];
-
 
     static const uint32_t N_HV507 = 2;
     static const uint32_t N_PINS = N_HV507 * 64;

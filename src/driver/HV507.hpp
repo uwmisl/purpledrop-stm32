@@ -97,6 +97,7 @@ private:
     uint32_t mCyclesSinceScan;
     uint16_t mScanData[N_PINS];
     uint16_t mOffsetCalibration;
+    uint16_t mOffsetCalibrationLowGain;
     uint8_t mLowGainFlags[N_BYTES];
     EventEx::EventHandlerFunction<events::SetElectrodes> mSetElectrodesHandler;
     EventEx::EventHandlerFunction<events::SetGain> mSetGainHandler;
@@ -107,7 +108,7 @@ private:
     void scan();
     void loadShiftRegister();
     void calibrateOffset();
-    SampleData sampleCapacitance();
+    SampleData sampleCapacitance(uint32_t sample_delay_ns, bool fire_sync_pulse);
     void handleSetGain(events::SetGain &e);
     GainSetting getGain(uint32_t channel);
 };
@@ -140,7 +141,9 @@ void HV507<N_CHIPS>::drive() {
             AUGMENT_ENABLE::setOutput(true);
         }
         modm::delay(std::chrono::nanoseconds(AppConfig::BlankingDelay()));
-        SampleData sample = sampleCapacitance();
+        // Scan sync pin -1 causes sync pulse on active capacitance measurement
+        bool fire_sync_pulse = AppConfig::ScanSyncPin() == -1;
+        SampleData sample = sampleCapacitance(AppConfig::SampleDelay(), fire_sync_pulse);
         // Send active capacitance message
         events::CapActive event(sample.sample0 + mOffsetCalibration, sample.sample1);
         mBroker->publish(event);
@@ -154,6 +157,8 @@ void HV507<N_CHIPS>::drive() {
 
 template<uint32_t N_CHIPS>
 void HV507<N_CHIPS>::scan() {
+    uint32_t sample_delay;
+    uint16_t offset_calibration;
     // Clear all bits in the shift register except the first
     for(uint32_t i=0; i < N_BYTES - 1; i++) {
         SPI::transferBlocking(0);
@@ -170,14 +175,13 @@ void HV507<N_CHIPS>::scan() {
     modm::delay(std::chrono::nanoseconds(AppConfig::ScanStartDelay()));
 
     for(int32_t i=N_PINS-1; i >= 0; i--) {
-        // Assert GPIO for test / debug
-        // Allows scope to trigger on desired channel
-        if(i == AppConfig::ScanSyncPin()) {
-            SCAN_SYNC::setOutput(true);        
-        }
         if(getGain(i) == GainSetting::LOW) {
+            sample_delay = AppConfig::SampleDelayLowGain();
+            offset_calibration = mOffsetCalibrationLowGain;
             GAIN_SEL::setOutput(true);
         } else {
+            sample_delay = AppConfig::SampleDelay();
+            offset_calibration = mOffsetCalibration;
             GAIN_SEL::setOutput(false);
         }
         // Skip the common top plate electrode
@@ -191,9 +195,12 @@ void HV507<N_CHIPS>::scan() {
         modm::delay(80ns);
         LE::setOutput(true);
         modm::delay(std::chrono::nanoseconds(AppConfig::ScanBlankDelay()));
-
-        SampleData sample = sampleCapacitance();
-        mScanData[i] = sample.sample1 - sample.sample0 - mOffsetCalibration;
+        
+        // Assert sync pulse on the requested pin for scope triggering
+        bool fire_sync_pulse = i == AppConfig::ScanSyncPin();
+        SampleData sample = sampleCapacitance(sample_delay, fire_sync_pulse);
+        SCAN_SYNC::setOutput(false);
+        mScanData[i] = sample.sample1 - sample.sample0 - offset_calibration;
         // It can go negative an overflow; clip it to zero when that happens
         if(mScanData[i] > 32767) {
             mScanData[i] = 0;
@@ -204,7 +211,6 @@ void HV507<N_CHIPS>::scan() {
         modm::delay(80ns);
         SCK::setOutput(false);
     }
-    SCAN_SYNC::setOutput(false);
 
     // Restore gain setting to normally high gain
     GAIN_SEL::setOutput(false);
@@ -214,7 +220,6 @@ void HV507<N_CHIPS>::scan() {
     SPI::connect<SCK::Sck, MOSI::Mosi, GpioUnused::Miso>();
     // Restore shift register values
     loadShiftRegister();
-
 }
 
 template <uint32_t N_CHIPS>
@@ -230,15 +235,27 @@ template <uint32_t N_CHIPS>
 void HV507<N_CHIPS>::calibrateOffset() {
     static const uint32_t nSample = 100;
     uint32_t accum = 0;
+
+    /* Offset calibration is calibrated for both normal and low gain because 
+    a different sample delay is used. The offset is essentially proportional
+    to the sample delay, so one could probably be calculated from the other,
+    but it's also pretty quick to just measure both */
     for(uint32_t i=0; i<nSample; i++) {
-        auto sample = sampleCapacitance();
+        auto sample = sampleCapacitance(AppConfig::SampleDelay(), false);
         accum += sample.sample1 - sample.sample0;
     }
     mOffsetCalibration = accum / nSample;
+
+    accum = 0;
+    for(uint32_t i=0; i<nSample; i++) {
+        auto sample = sampleCapacitance(AppConfig::SampleDelayLowGain(), false);
+        accum += sample.sample1 - sample.sample0;
+    }
+    mOffsetCalibrationLowGain = accum / nSample;
 }
 
 template <uint32_t N_CHIPS>
-typename HV507<N_CHIPS>::SampleData HV507<N_CHIPS>::sampleCapacitance() {
+typename HV507<N_CHIPS>::SampleData HV507<N_CHIPS>::sampleCapacitance(uint32_t sample_delay_ns, bool fire_sync_pulse) {
     SampleData ret;
 
     mAnalog->setupIntVout();
@@ -248,15 +265,21 @@ typename HV507<N_CHIPS>::SampleData HV507<N_CHIPS>::sampleCapacitance() {
         // Release the current integrator reset to begin measuring charge transfer
         INT_RESET::setOutput(false);
         modm::delay(std::chrono::nanoseconds(AppConfig::IntegratorResetDelay()));
+        // Assert GPIO for test / debug
+        // Allows scope to trigger on desired channel
+        if(fire_sync_pulse) {        
+            SCAN_SYNC::setOutput(true);        
+        }
         // Take an initial reading of integrator output -- the integrator does not
         // reset fully to 0V
         ret.sample0 = mAnalog->readIntVout();
         // Release the blanking signal, and allow time for active electrodes to
         // charge and current to settle back to zero
         BL::setOutput(true);
-        modm::delay(std::chrono::nanoseconds(AppConfig::SampleDelay()));
+        modm::delay(std::chrono::nanoseconds(sample_delay_ns));
         // Read voltage integrator
         ret.sample1 = mAnalog->readIntVout();
+        SCAN_SYNC::setOutput(false);
         INT_RESET::setOutput(true);
     }
     return ret;
