@@ -328,6 +328,63 @@ struct SetGainMsg {
     }
 };
 
+struct ParameterDescriptorMsg {
+    static const uint8_t ID = 12;
+
+    uint32_t param_id;
+    uint8_t defaultValue[4]; // could be int or float
+    uint16_t sequence_number; // The position of this parameter in the list
+    uint16_t sequence_total;  // The total number of parameters in the list
+
+    const char *name;
+    const char *description;
+    const char *type; // one of: "float", "int", "bool"
+
+    static int predictSize(uint8_t *buf, uint32_t length) {
+        (void)buf;
+        (void)length;
+        // Received messages are always empty and indicate request for parameter descriptor dump
+        return 1; 
+    }
+
+    bool fill(uint8_t *buf, uint32_t length) {
+        (void)buf;
+        if(length > 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }    
+
+    void serialize(Serializer &ser) {
+        uint32_t len;
+        // Total size of name + description + type  + the two null terminators separating them
+        uint16_t str_size = strlen(name) + strlen(description) + strlen(type) + 2;
+        
+        ser.push(ID);
+        ser.push(str_size);
+        ser.push(param_id);
+        ser.push(*((uint32_t*)defaultValue));
+        ser.push(sequence_number);
+        ser.push(sequence_total);
+        len = strlen(name);
+        for(uint32_t i=0; i<len; i++) {
+            ser.push(name[i]);
+        }
+        ser.push((uint8_t)0); // null separator
+        len = strlen(description);
+        for(uint32_t i=0; i<len; i++) {
+            ser.push(description[i]);
+        }
+        ser.push((uint8_t)0); // null separator
+        len = strlen(type);
+        for(uint32_t i=0; i<len; i++) {
+            ser.push(type[i]);
+        }
+        ser.finish();
+    }
+};
+
 #define PREDICT(msgname) case msgname::ID: \
     return msgname::predictSize(buf, length);
 
@@ -342,6 +399,7 @@ struct Messages {
             PREDICT(BulkCapacitanceMsg)
             PREDICT(DataBlobMsg)
             PREDICT(ElectrodeEnableMsg)
+            PREDICT(ParameterDescriptorMsg)
             PREDICT(ParameterMsg)
             PREDICT(SetGainMsg)
             PREDICT(SetPwmMsg)

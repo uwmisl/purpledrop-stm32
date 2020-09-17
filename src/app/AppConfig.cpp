@@ -1,22 +1,25 @@
 #include "AppConfig.hpp"
 
-#define INTOPT(_id, _defaultValue) {.id=_id, .isFloat=false, .value = {.i32=_defaultValue}, .defaultValue = {.i32=_defaultValue}}
-#define FLTOPT(_id, _defaultValue) {.id=_id, .isFloat=true, .value = {.f32=_defaultValue}, .defaultValue = {.f32=_defaultValue}}
+#define BOOLOPT(_id, _defaultValue, _name, _description) {.id=_id, .isFloat=false, \
+    .defaultValue={.i32=_defaultValue}, .name=_name, .description=_description, .type="bool"}
+#define INTOPT(_id, _defaultValue, _name, _description)  {.id=_id, .isFloat=false, \
+    .defaultValue={.i32=_defaultValue}, .name=_name, .description=_description, .type="int"}
+#define FLTOPT(_id, _defaultValue, _name, _description)  {.id=_id, .isFloat=true, \
+    .defaultValue={.f32=_defaultValue}, .name=_name, .description=_description, .type="float"}
 
 ConfigOptionDescriptor AppConfig::optionDescriptors[] = {
-    FLTOPT(TargetVoltageId, 200.0),
-    INTOPT(CapScanSettleDelayId, 2000),
-    INTOPT(HvControlEnabledId, 0),
-    FLTOPT(HvControlTargetId, 200.0),
-    INTOPT(HvControlOutputId, 120),
-    INTOPT(ScanSyncPinId, 0),
-    INTOPT(ScanStartDelayId, 200000),
-    INTOPT(ScanBlankDelayId, 4000),
-    INTOPT(SampleDelayId, 10000),
-    INTOPT(BlankingDelayId, 14000),
-    INTOPT(IntegratorResetDelayId, 1000),
-    INTOPT(AugmentTopPlateLowSideId, 0),
-    INTOPT(TopPlatePinId, 97)
+    BOOLOPT(HvControlEnabledId, 0, "HV Control Enabled", "Enables feedback control of HV supply"),
+    FLTOPT(HvControlTargetId, 200.0, "HV Voltage Setting", "Target voltage for HV supply"),
+    INTOPT(HvControlOutputId, 120, "HV Manual Output", "CONTROL output voltage when feedback control is disabled"),
+    INTOPT(ScanSyncPinId, 0, "Scan Sync Pin", "Set which scan channel to assert SYNC out on gpio C1; -1 means active sample"),
+    INTOPT(ScanStartDelayId, 200000, "Scan Start Delay", "ns; delay between polarity switch and first scan measurement"),
+    INTOPT(ScanBlankDelayId, 4000, "Scan Blank Delay", "ns; delay after asserting blank between each scan measurement"),
+    INTOPT(SampleDelayId, 10000, "Sample Delay (high gain)", "ns; Duration of current integration"),
+    INTOPT(SampleDelayLowGainId, 40000, "Sample Delay (low gain)", "ns; Duration of current integration"),
+    INTOPT(BlankingDelayId, 14000, "Active Blank Delay", "ns; delay between blank and integrator reset for active measurement"),
+    INTOPT(IntegratorResetDelayId, 1000, "Integrator reset delay", "ns; time between reset release and first sample"),
+    BOOLOPT(AugmentTopPlateLowSideId, 0, "Enable Top Plate Augment FET", "Enable extra FET to drive top plate to GND"),
+    INTOPT(TopPlatePinId, 97, "Top Plate Pin", "Pin number of HV507 output driving top plate")
 };
 
 const uint32_t AppConfig::N_OPT_DESCRIPTOR = sizeof(AppConfig::optionDescriptors) / sizeof(AppConfig::optionDescriptors[0]);

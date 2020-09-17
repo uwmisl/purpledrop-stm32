@@ -41,6 +41,8 @@ private:
     static const uint32_t CapScanMsgSize = 8;
     static const uint32_t CapScanTxPeriod = 100000;
 
+    uint32_t mParamaterDescriptorTxPos;
+
     uint16_t mHvUpdateCounter;
     static const uint16_t HvMessageDivider = 10;
 

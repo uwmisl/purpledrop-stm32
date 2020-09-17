@@ -16,6 +16,8 @@ void Comms::init(
     mTxQueue = tx_queue;
     mFlush = flush;
 
+    mParamaterDescriptorTxPos = AppConfig::N_OPT_DESCRIPTOR;
+
     mCapScanHandler.setFunction([this](auto &e) { HandleCapScan(e); });
     mBroker->registerHandler(&mCapScanHandler);
     mCapActiveHandler.setFunction([this](auto &e) { HandleCapActive(e); });
@@ -65,6 +67,10 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
                 mBroker->publish(event);
 
             }
+            break;
+        case ParameterDescriptorMsg::ID:
+            // Kick off transmission of all parameter descriptors
+            mParamaterDescriptorTxPos = 0;
             break;
         case ParameterMsg::ID:
             {
@@ -195,6 +201,22 @@ void Comms::PeriodicSend() {
             msg.serialize(ser);
             mFlush();
         }
+    }
+
+    if(mParamaterDescriptorTxPos < AppConfig::N_OPT_DESCRIPTOR) {
+        ParameterDescriptorMsg msg;
+        ConfigOptionDescriptor *desc = &AppConfig::optionDescriptors[mParamaterDescriptorTxPos];
+        Serializer ser(mTxQueue);
+        msg.param_id = desc->id;
+        memcpy(msg.defaultValue, &desc->defaultValue, sizeof(msg.defaultValue));
+        msg.sequence_number = mParamaterDescriptorTxPos;
+        msg.sequence_total = AppConfig::N_OPT_DESCRIPTOR;
+        msg.name = desc->name;
+        msg.description = desc->description;
+        msg.type = desc->type;
+        msg.serialize(ser);
+        mFlush();
+        mParamaterDescriptorTxPos++;
     }
 }
 
