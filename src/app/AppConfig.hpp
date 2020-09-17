@@ -29,8 +29,10 @@ union ConfigOptionValue {
 struct ConfigOptionDescriptor {
     const uint16_t id;
     const bool isFloat;
-    ConfigOptionValue value;
     const ConfigOptionValue defaultValue;
+    const char *name;
+    const char *description;
+    const char *type;
 };
 
 struct AppConfig {

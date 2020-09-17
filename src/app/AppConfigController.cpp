@@ -3,6 +3,8 @@
 #include "Events.hpp"
 #include "SafeFlashPersist.hpp"
 
+#include <memory>
+
 static const uint32_t FirstFlashSector = 2;
 static const uint32_t FirstFlashAddr = 0x08008000;
 static const uint32_t FirstFlashSize = 0x4000; // 16K
@@ -11,10 +13,13 @@ static const uint32_t SecondFlashAddr = 0x0800C000;
 static const uint32_t SecondFlashSize = 0x4000; // 16K
 static SafeFlashPersist<FirstFlashSector, FirstFlashAddr, FirstFlashSize,
     FirstFlashSector, FirstFlashAddr, FirstFlashSize> flashPersist;
-static uint8_t flashBuf[sizeof(AppConfig::optionValues) + 8];
+static const uint32_t ParameterBlockId = 1;
 
 void AppConfigController::init(EventEx::EventBroker *broker) {
     mBroker = broker;
+
+    // Load default app config
+    AppConfig::init();
 
     // Load saved parameters from flash, or initialize with defaults
     load();
@@ -40,40 +45,49 @@ void AppConfigController::HandleSetParameter(events::SetParameter &e) {
     e.callback(paramIdx, paramValue);
 }
 
+struct StoredParamRecord {
+    uint16_t id;
+    ConfigOptionValue value;
+} __attribute__ ((packed));
+
 bool AppConfigController::persist() {
-    uint32_t *u32Buf = (uint32_t*)flashBuf;
+    const uint32_t buf_size = AppConfig::N_OPT_DESCRIPTOR * sizeof(StoredParamRecord) + 8;
+    std::unique_ptr<uint8_t[]> buf(new uint8_t[buf_size]);
     // Write out a block header with type and length first
     // to allow for storing multiple blocks in the future
-    u32Buf[0] = 0; // Parameter section ID
-    u32Buf[1] = sizeof(AppConfig::optionValues);
-    memcpy(&u32Buf[2], AppConfig::optionValues, sizeof(AppConfig::optionValues));
-    return flashPersist.write(flashBuf, sizeof(flashBuf));
+    uint32_t *u32Buf = (uint32_t*)&buf[0];
+    u32Buf[0] = ParameterBlockId;
+    u32Buf[1] = buf_size - 8;
+    for(uint32_t i=0; i<AppConfig::N_OPT_DESCRIPTOR; i++) {
+        StoredParamRecord record;
+        record.id = AppConfig::optionDescriptors[i].id;
+        record.value = AppConfig::optionValues[record.id];
+        memcpy(&buf[i * sizeof(record) + 8], &record, sizeof(record));
+    }
+    return flashPersist.write(buf.get(), buf_size + 8);
 }
 
 void AppConfigController::load() {
     uint8_t *data;
     uint32_t size;
-    uint32_t n_loaded = 0;
 
     if(flashPersist.read(&data, &size)) {
         if(size > 8) {
-            // Allow for data with more or less options than the current code has in case
-            // AppConfig::MAX_OPT_ID changes in the future
-            // Skip first 8 bytes because these are data type and length
-            uint32_t flash_length = ((uint32_t*)data)[1];
-            uint32_t copySize = std::min(flash_length, (uint32_t)sizeof(AppConfig::optionValues));
-            if(copySize + 8 <= size) {
-                memcpy(AppConfig::optionValues, data + 8, copySize);
-                n_loaded = copySize / sizeof(AppConfig::optionValues[0]);
+            uint32_t block_id = ((uint32_t *)data)[0];
+            if(block_id != ParameterBlockId) {
+                // Someday, we may support multiple blocks
+                // For now, this means no parameters are stored
+                return;
             }
-        }
-    }
-
-    // Load defaults for any options not loaded from flash
-    for(uint32_t i=0; i<AppConfig::N_OPT_DESCRIPTOR; i++) {
-        uint32_t id = AppConfig::optionDescriptors[i].id;
-        if(id < AppConfig::MAX_OPT_ID && id > n_loaded) {
-            AppConfig::optionValues[id] = AppConfig::optionDescriptors[i].defaultValue;
+            uint32_t flash_length = ((uint32_t*)data)[1];
+            StoredParamRecord *records = (StoredParamRecord*)&data[8];
+            uint32_t num_records = flash_length / sizeof(StoredParamRecord);
+            for(uint32_t i=0; i<num_records; i++) {
+                if(records[i].id >= AppConfig::MAX_OPT_ID) {
+                    continue;
+                }
+                AppConfig::optionValues[records[i].id] = records[i].value;
+            }
         }
     }
 }
