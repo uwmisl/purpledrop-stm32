@@ -58,5 +58,5 @@ add_custom_target(${CMAKE_PROJECT_NAME}.lss ALL DEPENDS ${CMAKE_PROJECT_NAME} CO
 add_custom_target(${CMAKE_PROJECT_NAME}.dfu
     ALL
     DEPENDS ${CMAKE_PROJECT_NAME}.hex
-    COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_dfu.py ${CMAKE_PROJECT_NAME}.hex ${CMAKE_PROJECT_NAME}.dfu
+    COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_dfu.py ${CMAKE_PROJECT_NAME}.hex ${CMAKE_PROJECT_NAME}.dfu
 )
