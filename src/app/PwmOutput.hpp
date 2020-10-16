@@ -6,6 +6,7 @@
 #include "modm/driver/pwm/pca9685.hpp"
 
 static const uint32_t N_PWM_CHAN = 16;
+static const uint32_t MAX_TIMEOUT_CHAN = 3;
 
 struct PwmOutput {
     void init(EventEx::EventBroker *broker);

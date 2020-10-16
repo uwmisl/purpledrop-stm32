@@ -30,7 +30,7 @@ void PwmOutput::init(EventEx::EventBroker *broker) {
 
 void PwmOutput::poll() {
     auto now = modm::chrono::milli_clock::now();
-    for(uint32_t ch=0; ch<N_PWM_CHAN; ch++) {
+    for(uint32_t ch=0; ch<MAX_TIMEOUT_CHAN; ch++) {
         if(now - mUpdateTimes[ch] > PWM_TIMEOUT) {
             if(mDutyCycles[ch] != 0) {
                 setDutyCycle(ch, 0);
