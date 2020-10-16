@@ -410,6 +410,42 @@ struct CalibrateCommandMsg {
     }
 };
 
+struct GpioControlMsg {
+    static const uint8_t ID = 14;
+
+    enum Flags : uint8_t {
+        ValueFlag = 1,
+        OutputFlag = 2,
+        ReadFlag = 128
+    };
+
+    static int predictSize(uint8_t *buf, uint32_t length) {
+        (void)buf;
+        (void)length;
+        return 3;
+    }
+
+    bool fill(uint8_t *buf, uint32_t length) {
+        if(length < 3) {
+            return false;
+        } else {
+            pin = buf[1];
+            flags = buf[2];
+            return true;
+        }
+    }
+
+    void serialize(Serializer &ser) {
+        ser.push(ID);
+        ser.push(pin);
+        ser.push(flags);
+        ser.finish();
+    }
+
+    uint8_t pin;
+    uint8_t flags;
+};
+
 #define PREDICT(msgname) case msgname::ID: \
     return msgname::predictSize(buf, length);
 
@@ -425,6 +461,7 @@ struct Messages {
             PREDICT(CalibrateCommandMsg)
             PREDICT(DataBlobMsg)
             PREDICT(ElectrodeEnableMsg)
+            PREDICT(GpioControlMsg)
             PREDICT(ParameterDescriptorMsg)
             PREDICT(ParameterMsg)
             PREDICT(SetGainMsg)

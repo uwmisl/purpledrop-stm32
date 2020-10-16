@@ -27,6 +27,14 @@ struct CapScan : public Event {
 
 struct ElectrodesUpdated : public Event {};
 
+struct GpioControl : public Event {
+    uint8_t pin;
+    bool value;
+    bool outputEnable;
+    bool write;
+    std::function<void(uint8_t pin, bool value)> callback;
+};
+
 struct SetGain : public Event {
     SetGain() : data{0} {}
 

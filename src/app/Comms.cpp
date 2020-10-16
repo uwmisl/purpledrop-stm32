@@ -55,7 +55,7 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
                 msg.fill(buf, len);
                 if(msg.command == CalibrateCommandMsg::CommandType::CapacitanceOffset) {
                     events::CapOffsetCalibrationRequest event;
-                    mBroker->publish(event);    
+                    mBroker->publish(event);
                 }
                 ack.acked_id = CalibrateCommandMsg::ID;
                 ack.serialize(ser);
@@ -80,7 +80,29 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
                     event.values[i] = msg.values[i];
                 }
                 mBroker->publish(event);
-
+            }
+            break;
+        case GpioControlMsg::ID:
+            {
+                GpioControlMsg msg;
+                msg.fill(buf, len);
+                events::GpioControl event;
+                event.pin = msg.pin;
+                event.outputEnable = (bool)(msg.flags & GpioControlMsg::OutputFlag);
+                event.value = (bool)(msg.flags & GpioControlMsg::ValueFlag);
+                event.write = !(bool)(msg.flags & GpioControlMsg::ReadFlag);
+                event.callback = [this](uint8_t pin, bool value) {
+                    GpioControlMsg resp;
+                    Serializer ser(mTxQueue);
+                    resp.pin = pin;
+                    resp.flags = 0;
+                    if(value) {
+                        resp.flags |= GpioControlMsg::ValueFlag;
+                    }
+                    resp.serialize(ser);
+                    mFlush();
+                };
+                mBroker->publish(event);
             }
             break;
         case ParameterDescriptorMsg::ID:
@@ -238,7 +260,7 @@ void Comms::PeriodicSend() {
 void Comms::SendBlob(uint8_t blob_id, const uint8_t *buf, uint32_t size) {
     // We don't handle multi-packet blobs yet
     // In the future, for larger data blobs (e.g. Parameter descriptions) this
-    // needs to chunk them up, and queue for transmission over time. 
+    // needs to chunk them up, and queue for transmission over time.
 
     DataBlobMsg msg;
     Serializer ser(mTxQueue);

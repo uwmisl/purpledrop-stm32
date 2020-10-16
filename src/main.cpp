@@ -13,6 +13,7 @@ extern "C" {
 
 #include "usb_vcp.hpp"
 #include "Analog.hpp"
+#include "AuxGpios.hpp"
 #include "CircularBuffer.hpp"
 #include "AppConfigController.hpp"
 #include "Comms.hpp"
@@ -30,8 +31,16 @@ using namespace modm::literals;
 StaticCircularBuffer<uint8_t, 4096> USBTxBuffer;
 StaticCircularBuffer<uint8_t, 512> USBRxBuffer;
 
+using AuxGpioArray = GpioArray<
+    GpioB0,
+    GpioB2,
+    GpioC5
+>;
+
+
 Analog analog;
 AppConfigController appConfigController;
+AuxGpios<AuxGpioArray> auxGpios;
 HV507<> hvControl;
 EventEx::EventBroker broker;
 Comms comms;
@@ -65,6 +74,7 @@ int main() {
     printf("Beginning Initialization...\n");
     analog.init();
     appConfigController.init(&broker);
+    auxGpios.init(&broker);
     hvControl.init(&broker, &analog);
     hvRegulator.init(&broker, &analog);
     tempSensors.init(&broker);
