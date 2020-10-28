@@ -4,8 +4,8 @@
 #include "usbd_core.h"
 
 
-#define USBD_VID                        0x02dd
-#define USBD_PID                        0x7da3
+#define USBD_VID                        0x1209
+#define USBD_PID                        0xCCAA
 
 #define USBD_LANGID_STRING              0x409
 #define USBD_MANUFACTURER_STRING        "UW MISL"
