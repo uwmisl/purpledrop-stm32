@@ -19,8 +19,6 @@ static Max31865<SPI, CS3> Sensor3;
 
 static const float RESIST_REF = 4000.0;
 
-
-
 IMax31865 *TempSensors::mDrivers[] = {
     &Sensor0,
     &Sensor1,
@@ -45,6 +43,10 @@ void TempSensors::poll() {
         for(uint32_t i=0; i<AppConfig::N_TEMP_SENSOR; i++) {
             mReadings[i] = mDrivers[i]->read_temperature() * 100;
             event.measurements[i] = mReadings[i];
+            uint8_t faults = mDrivers[i]->fault_flags();
+            if(faults != 0) {
+                printf("Fault %x on sensor %ld\n", faults, i);
+            }
         }
 
         mBroker->publish(event);

@@ -9,6 +9,7 @@ struct IMax31865 {
     virtual void init(float resist_ref) = 0;
     virtual float read_resistance() = 0;
     virtual float read_temperature() = 0;
+    virtual uint8_t fault_flags() = 0;
 };
 
 template<class SPI, class CS> 
@@ -42,6 +43,10 @@ struct Max31865 : IMax31865 {
         /// 1 = on, 0 = off
         VBias                = 0b10000000,
     };
+
+    static constexpr uint8_t configRegValue() {
+        return VBias | ConversionMode;
+    }
     
     void writeByte(uint8_t addr, uint8_t value) {
         uint8_t txBuf[2];
@@ -50,13 +55,22 @@ struct Max31865 : IMax31865 {
         transfer(txBuf, NULL, 2);
     }
 
+    uint8_t readByte(uint8_t addr) {
+        uint8_t txBuf[2];
+        uint8_t rxBuf[2];
+        txBuf[0] = addr;
+        txBuf[1] = 0;
+        transfer(txBuf, rxBuf, 2);
+        return rxBuf[1];
+    }
+
     void init(float resist_ref) {
         mResistRef = resist_ref;
         static const uint16_t LOW_THRESH = 0;
-        static const uint16_t HIGH_THRESH = 0x7fff;
+        static const uint16_t HIGH_THRESH = 0xfffe;
 
         CS::setOutput(true);
-        writeByte(Configuration, VBias | ConversionMode);
+        writeByte(Configuration, configRegValue());
         writeByte(LowFaultThresholdMsb, (LOW_THRESH >> 8));
         writeByte(LowFaultThresholdLsb, LOW_THRESH & 0xff);
         writeByte(HighFaultThresholdMsb, (HIGH_THRESH >> 8));
@@ -69,9 +83,16 @@ struct Max31865 : IMax31865 {
         txBuf[0] = RtdHigh;
 
         transfer(txBuf, rxBuf, 3);
-
+        bool fault = (rxBuf[2] & 0x1) != 0;
+        float resistance = 0.0;
+        if(!fault) {
+            mFaultFlags = 0;
+        } else {
+            mFaultFlags = readByte(FaultStatus);
+            writeByte(Configuration, configRegValue() | FaultStatusClear);
+        }
         uint16_t rawResistance = ((uint16_t)rxBuf[1] << 7) + (rxBuf[2] >> 1);
-        float resistance = (float)rawResistance * mResistRef / 32768;
+        resistance = (float)rawResistance * mResistRef / 32768;
         return resistance;
     }
 
@@ -89,8 +110,13 @@ struct Max31865 : IMax31865 {
             + rtd_e * powf(res, 7);
     }
 
+    uint8_t fault_flags() {
+        return mFaultFlags;
+    }
+
 private:
     float mResistRef;
+    uint8_t mFaultFlags;
     void transfer(uint8_t *tx_buf, uint8_t *rx_buf, uint16_t length) {
         CS::setOutput(false);
         modm::delay(400ns);
