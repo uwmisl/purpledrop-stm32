@@ -1,5 +1,12 @@
 # PurpleDrop STM32 Software Releases
 
+
+## 0.4.0 (pending)
+
+- Add controllable GPIO outputs
+- Disable timeout on PWM channels 4-15
+- Update VID/PID to 0x1209/0xCCAA
+
 ## 0.3.0 (2020-09-18)
 
 - Update parameter persistence so that new parameters get properly initialized with defaults
