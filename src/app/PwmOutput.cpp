@@ -40,7 +40,6 @@ void PwmOutput::poll() {
 }
 
 void PwmOutput::setDutyCycle(uint8_t chan, uint16_t duty_cycle) {
-    printf("Setting PWM %d to %d\n", (int)chan,(int)duty_cycle);
     if(chan > N_PWM_CHAN) {
         printf("Out of range PWM channel: %d\n", chan);
         return;
