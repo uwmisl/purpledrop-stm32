@@ -22,6 +22,7 @@ extern "C" {
 #include "HvRegulator.hpp"
 #include "Max31865.hpp"
 #include "PwmOutput.hpp"
+#include "ScanGroups.hpp"
 #include "SystemClock.hpp"
 #include "TempSensors.hpp"
 
@@ -41,13 +42,14 @@ using AuxGpioArray = GpioArray<
 Analog analog;
 AppConfigController appConfigController;
 AuxGpios<AuxGpioArray> auxGpios;
-HV507<> hvControl;
+HV507 hvControl;
 EventEx::EventBroker broker;
 Comms comms;
 HvRegulator hvRegulator;
 TempSensors tempSensors;
 PeriodicPollingTimer mainLoopTimer(1000, true);
 PwmOutput pwmOutput;
+ScanGroups<AppConfig::N_PINS> scanGroups;
 
 using LoopTimingPin = GpioB11;
 using SwitchGreenPin = GpioC8;
@@ -75,7 +77,7 @@ int main() {
     analog.init();
     appConfigController.init(&broker);
     auxGpios.init(&broker);
-    hvControl.init(&broker, &analog);
+    hvControl.init(&broker, &analog, &scanGroups);
     hvRegulator.init(&broker, &analog);
     tempSensors.init(&broker);
     pwmOutput.init(&broker);
