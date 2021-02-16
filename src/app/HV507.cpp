@@ -1,92 +1,207 @@
 #include "HV507.hpp"
 
-MODM_ISR(TIM3) {
-    HV507::spiIrqHandler();
-}
 
+static const uint32_t TIMER_IRQ_PRIO = 1;
+
+MODM_ISR(TIM5) {
+    SchedulingTimer::irqHandler();
+    HV507::timerIrqHandler();
+}
 
 HV507* HV507::mSingleton = nullptr;
 
-void HV507::init(EventEx::EventBroker *broker, Analog *analog, ScanGroups<N_PINS> *scan_groups) {
-        mBroker = broker;
-        mAnalog = analog;
-        mScanGroups = scan_groups;
-        mCyclesSinceScan = 0;
-        mCalibrateStep = CALSTEP_NONE;
-        for(uint32_t i=0; i<N_BYTES; i++) {
-            mShiftReg[i] = 0;
-            mLowGainFlags[i] = 0;
-        }
-
-        SPI::connect<SCK::Sck, MOSI::Mosi, GpioUnused::Miso>();
-        SPI::initialize<SystemClock, 6000000>();
-        SPI::setDataOrder(SPI::DataOrder::LsbFirst);
-        INT_RESET::setOutput(true);
-        GAIN_SEL::setOutput(false);
-        AUGMENT_ENABLE::setOutput(false);
-        POL::setOutput(false);
-        BL::setOutput(false);
-        LE::setOutput(true);
-        POL::configure(Gpio::OutputType::PushPull);
-        BL::configure(Gpio::OutputType::PushPull);
-        LE::configure(Gpio::OutputType::PushPull);
-        INT_RESET::configure(Gpio::OutputType::PushPull);
-        GAIN_SEL::configure(Gpio::OutputType::PushPull);
-
-        calibrateOffset();
-
-        mSetElectrodesHandler.setFunction([this](auto &e) { setElectrodes(e.values); });
-        mBroker->registerHandler(&mSetElectrodesHandler);
-        mSetGainHandler.setFunction([this](auto &e) { handleSetGain(e); });
-        mBroker->registerHandler(&mSetGainHandler);
-        mCapOffsetCalibrationRequestHandler.setFunction([this](auto &) { this->mCalibrateStep = CALSTEP_REQUEST; });
-        mBroker->registerHandler(&mCapOffsetCalibrationRequestHandler);
+void HV507::init(EventEx::EventBroker *broker, Analog *analog) {
+    mBroker = broker;
+    mAnalog = analog;
+    mCyclesSinceScan = 0;
+    mCalibrateStep = CALSTEP_NONE;
+    mDutyCycleA = 255;
+    mDutyCycleB = 255;
+    for(uint32_t i=0; i<N_BYTES; i++) {
+        mShiftRegA[i] = 0;
+        mShiftRegB[i] = 0;
+        mLowGainFlags[i] = 0;
     }
 
+    SPI::connect<SCK::Sck, MOSI::Mosi, GpioUnused::Miso>();
+    SPI::initialize<SystemClock, 6000000>();
+    SPI::setDataOrder(SPI::DataOrder::LsbFirst);
+    // modm SPI driver doesn't support IRQ setup
+    NVIC_SetPriority(TIM5_IRQn, TIMER_IRQ_PRIO);
+    NVIC_EnableIRQ(TIM5_IRQn);
 
-void HV507::drive() {
-    mCyclesSinceScan++;
+    INT_RESET::setOutput(true);
+    GAIN_SEL::setOutput(false);
+    AUGMENT_ENABLE::setOutput(false);
+    POL::setOutput(false);
+    BL::setOutput(false);
+    LE::setOutput(true);
+    POL::configure(Gpio::OutputType::PushPull);
+    BL::configure(Gpio::OutputType::PushPull);
+    LE::configure(Gpio::OutputType::PushPull);
+    INT_RESET::configure(Gpio::OutputType::PushPull);
+    GAIN_SEL::configure(Gpio::OutputType::PushPull);
 
+    calibrateOffset();
+
+    mSetElectrodesHandler.setFunction([this](auto &e) { setElectrodes(e.values); });
+    mBroker->registerHandler(&mSetElectrodesHandler);
+    mSetGainHandler.setFunction([this](auto &e) { handleSetGain(e); });
+    mBroker->registerHandler(&mSetGainHandler);
+    mCapOffsetCalibrationRequestHandler.setFunction([this](auto &) { this->mCalibrateStep = CALSTEP_REQUEST; });
+    mBroker->registerHandler(&mCapOffsetCalibrationRequestHandler);
+
+
+
+    // Kick off asynchronous drive
+    SchedulingTimer::init();
+    SchedulingTimer::reset();
+    SchedulingTimer::schedule(DRIVE_PERIOD_US);
+}
+
+void HV507::groupScan() {
+    memset(mGroupScanData, 0, sizeof(mGroupScanData));
+    if(!mScanGroups.isAnyGroupActive()) {
+        return;
+    }
+    for(uint32_t group=0; group<mScanGroups.MaxGroups; group++) {
+        if(mScanGroups.isGroupActive(group)) {
+            mShadowShiftReg = mScanGroups.getGroupMask(group);
+            blank();
+            // Presently assuming the SPI transfer time is more than enough blanking time,
+            // so this is not adjustable 
+            loadShiftRegister(mShadowShiftReg);
+            latchShiftRegister();
+
+            // Use 10,000 + group number to trigger on a particular group measurement
+            bool fire_sync_pulse = AppConfig::ScanSyncPin() == (int32_t)(10000 + group);
+            SampleData sample = sampleCapacitance(AppConfig::SampleDelay(), fire_sync_pulse);
+            if(mFsm.count < mScanGroups.MaxGroups) {
+                mGroupScanData[group] = sample.sample1 - sample.sample0;
+            }
+        }
+    }
+    // TODO: Fire event with new group scan data
+}
+
+bool HV507::driveFsm() {
+    if(mFsm.drive == DriveState_e::Start) {
+        SchedulingTimer::reset();
+        blank();
+        if(mFsm.top == TopState_e::DriveN) {
+            setPolarity(false);
+        } else {
+            setPolarity(true);
+        }
+        // Write both enable groups
+        for(uint32_t b=0; b<N_BYTES; b++) {
+            mShadowShiftReg[b] = mShiftRegA[b] | mShiftRegB[b];
+        }
+        loadShiftRegister(mShadowShiftReg);
+        latchShiftRegister();
+
+        if(mFsm.top == TopState_e::DriveN) {
+            unblank();
+        } else {
+            // Scan sync pin -1 causes sync pulse on active capacitance measurement
+            bool fire_sync_pulse = AppConfig::ScanSyncPin() == -1;
+            SampleData sample = sampleCapacitance(AppConfig::SampleDelay(), fire_sync_pulse);
+            // Send active capacitance message
+            events::CapActive event(sample.sample0 + mOffsetCalibration, sample.sample1);
+            mBroker->publish(event);
+        }
+
+        // Determine what intermediate steps are needed
+        if(mDutyCycleA == mDutyCycleB) {
+            mWriteIntermediate = false;
+        } else {
+            mWriteIntermediate = true;
+            if(mDutyCycleA < mDutyCycleB) {
+                for(uint32_t i=0; i<N_BYTES; i++) {
+                    mIntermediateShiftReg[i] = mShiftRegB[i];
+                }
+            } else {
+                for(uint32_t i=0; i<N_BYTES; i++) {
+                    mIntermediateShiftReg[i] = mShiftRegA[i];
+                }
+            }
+        }
+
+        // Next step, we will either latch the new partial shift register value, 
+        // or we will go straight to blanking
+        if(mWriteIntermediate) {
+            loadShiftRegister(mIntermediateShiftReg);
+            mFsm.drive = DriveState_e::WaitIntermediate;
+        } else {
+            mFsm.drive = DriveState_e::EndPulse;
+        }
+
+        uint8_t min_duty = std::min(mDutyCycleA, mDutyCycleB);
+        int32_t wait_time = DRIVE_PERIOD_US * min_duty / 256 - SchedulingTimer::time_us();
+        if(wait_time < 0) {
+            wait_time = 0;
+        }
+        SchedulingTimer::schedule(wait_time);
+        return false;
+    } else if(mFsm.drive == DriveState_e::WaitIntermediate) {
+        uint8_t max_duty = std::max(mDutyCycleA, mDutyCycleB);
+        uint32_t wait_time = DRIVE_PERIOD_US * max_duty / 256 - SchedulingTimer::time_us();
+        latchShiftRegister();
+        mFsm.drive = DriveState_e::EndPulse;
+        SchedulingTimer::schedule(wait_time);
+        return false;
+    } else if(mFsm.drive == DriveState_e::EndPulse) {
+        blank();
+        mFsm.drive = DriveState_e::Start;
+        return true;
+    } 
+    mFsm.drive = DriveState_e::Start;
+    return true;
+}
+
+void HV507::callback() {
     if(mCalibrateStep == CALSTEP_REQUEST) {
         // When requested, setup the correct polarity, then allow a cycle to stabilize
         setPolarity(true);
         BL::setOutput(false);
         mCalibrateStep = CALSTEP_SETTLE;
-        return;
+        SchedulingTimer::schedule(DRIVE_PERIOD_US);
     } else if(mCalibrateStep == CALSTEP_SETTLE) {
         // Previouse cycle we did setup, now measure the offset
         calibrateOffset();
         mCalibrateStep = CALSTEP_NONE;
+        // Reset all state after calibration -- i.e. start over whatever stage of measurement we were in
+        mFsm = FSM();
     }
 
-    if(mCyclesSinceScan >= SCAN_PERIOD) {
-        mCyclesSinceScan = 0;
-        scan();
-        events::CapScan event;
-        event.measurements = mScanData;
-        mBroker->publish(event);
+    if(mFsm.top == TopState_e::DriveN) {
+        if(driveFsm()) {
+            // drive sub state machine finished
+            mFsm.top = TopState_e::MeasureGroups;
+            setPolarity(true);
+            blank();
+            SchedulingTimer::schedule(1);
+            mCyclesSinceScan++;
+        }
+    } else if(mFsm.top == TopState_e::MeasureGroups) {
+        groupScan();
+        mFsm.top = TopState_e::DriveP;
+        SchedulingTimer::schedule(1);
+    } else if(mFsm.top == TopState_e::DriveP) {
+        if(mCyclesSinceScan >= SCAN_PERIOD) {
+            mCyclesSinceScan = 0;
+            scan();
+            events::CapScan event;
+            event.measurements = mScanData;
+            mBroker->publish(event);
+        }
+
+        if(driveFsm()) {
+            mFsm.top = TopState_e::DriveN;
+            SchedulingTimer::schedule(1);
+        }
     }
 
-    if(mShiftRegDirty) {
-        loadShiftRegister();
-        mShiftRegDirty = false;
-        events::ElectrodesUpdated event;
-        mBroker->publish(event);
-    }
-
-    if(!POL::read()) {
-        BL::setOutput(false);
-        setPolarity(true);
-        modm::delay(std::chrono::nanoseconds(AppConfig::BlankingDelay()));
-        // Scan sync pin -1 causes sync pulse on active capacitance measurement
-        bool fire_sync_pulse = AppConfig::ScanSyncPin() == -1;
-        SampleData sample = sampleCapacitance(AppConfig::SampleDelay(), fire_sync_pulse);
-        // Send active capacitance message
-        events::CapActive event(sample.sample0 + mOffsetCalibration, sample.sample1);
-        mBroker->publish(event);
-    } else {
-        setPolarity(false);
-    }
 }
 
 void HV507::scan() {
@@ -132,7 +247,6 @@ void HV507::scan() {
         // Assert sync pulse on the requested pin for scope triggering
         bool fire_sync_pulse = i == AppConfig::ScanSyncPin();
         SampleData sample = sampleCapacitance(sample_delay, fire_sync_pulse);
-        SCAN_SYNC::setOutput(false);
         mScanData[i] = sample.sample1 - sample.sample0 - offset_calibration;
         // It can go negative an overflow; clip it to zero when that happens
         if(mScanData[i] > 32767) {
@@ -151,12 +265,14 @@ void HV507::scan() {
     BL::setOutput(true);
     // Restore GPIOs to alternate fucntion
     SPI::connect<SCK::Sck, MOSI::Mosi, GpioUnused::Miso>();
-    // Restore shift register values
-    loadShiftRegister();
 }
 
-void HV507::loadShiftRegister() {
-    SPI::transferBlocking(mShiftReg, 0, N_BYTES);
+void HV507::loadShiftRegister(PinMask shift_reg) {
+    SPI::transferBlocking((uint8_t *)&shift_reg, 0, N_BYTES);
+
+}
+
+void HV507::latchShiftRegister() {
     LE::setOutput(false);
     // Per datasheet, min LE pulse width is 80ns
     modm::delay(80ns);
@@ -255,6 +371,6 @@ void HV507::setPolarity(bool pol) {
     }
 }
 
-void HV507::spiIrqHandler() {
-
+bool HV507::getPolarity() {
+    return POL::read();
 }

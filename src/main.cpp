@@ -49,7 +49,6 @@ HvRegulator hvRegulator;
 TempSensors tempSensors;
 PeriodicPollingTimer mainLoopTimer(1000, true);
 PwmOutput pwmOutput;
-ScanGroups<AppConfig::N_PINS> scanGroups;
 
 using LoopTimingPin = GpioB11;
 using SwitchGreenPin = GpioC8;
@@ -77,7 +76,7 @@ int main() {
     analog.init();
     appConfigController.init(&broker);
     auxGpios.init(&broker);
-    hvControl.init(&broker, &analog, &scanGroups);
+    hvControl.init(&broker, &analog);
     hvRegulator.init(&broker, &analog);
     tempSensors.init(&broker);
     pwmOutput.init(&broker);
@@ -95,7 +94,6 @@ int main() {
             tempSensors.poll();
             hvRegulator.poll();
             pwmOutput.poll();
-            hvControl.drive();
             LoopTimingPin::reset();
         }
     }

@@ -28,6 +28,7 @@
     <module>modm:platform:i2c:1</module>
     <module>modm:platform:spi:2</module>
     <module>modm:platform:spi:3</module>
+    <module>modm:platform:timer:5</module>
     <module>modm:platform:timer:14</module>
     <module>modm:platform:gpio</module>
   </modules>
