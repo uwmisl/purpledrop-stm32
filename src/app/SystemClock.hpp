@@ -14,8 +14,8 @@ using namespace modm::platform;
 struct SystemClock {
 	static constexpr uint32_t Frequency = 96_MHz;
 	static constexpr uint32_t Ahb = Frequency;
-	static constexpr uint32_t Apb1 = Frequency;
-	static constexpr uint32_t Apb2 = Frequency / 2;
+	static constexpr uint32_t Apb1 = Frequency / 2;
+	static constexpr uint32_t Apb2 = Frequency;
 
 	static constexpr uint32_t Adc    = Apb2;
 
