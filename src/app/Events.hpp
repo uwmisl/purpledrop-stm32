@@ -25,6 +25,10 @@ struct CapScan : public Event {
     const uint16_t *measurements; // Size is N_HV507 * 64
 };
 
+struct CapGroups : public Event {
+    std::array<uint16_t, AppConfig::N_CAP_GROUPS> measurements;
+};
+
 struct ElectrodesUpdated : public Event {};
 
 struct GpioControl : public Event {
@@ -57,7 +61,9 @@ struct SetGain : public Event {
 };
 
 struct SetElectrodes : public Event {
-    uint8_t values[AppConfig::N_HV507 * 8];
+    uint8_t groupID;
+    uint8_t setting;
+    uint8_t values[AppConfig::N_BYTES];
 };
 
 struct SetParameter : public Event {

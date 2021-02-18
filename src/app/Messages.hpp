@@ -31,12 +31,23 @@
 struct ElectrodeEnableMsg {
     static const uint8_t ID = 0;
 
+    enum GroupIds_e : uint8_t {
+        Active0 = 0,
+        Active1 = 1,
+        Scan0 = 100,
+        Scan1 = 101,
+        Scan2 = 102,
+        Scan3 = 103,
+        Scan4 = 104,
+        Scan5 = 105,
+    };
+
     ElectrodeEnableMsg() : values{0} {}
 
     static int predictSize(uint8_t *buf, uint32_t length) {
         (void)buf;
         (void)length;
-        return 17;
+        return 19;
     }
 
     bool fill(uint8_t* buf, uint32_t length) {
@@ -44,27 +55,31 @@ struct ElectrodeEnableMsg {
             return false;
         }
 
+        groupID = buf[1];
+        setting = buf[2];
         for(int i=0; i<16; i++) {
-            values[i] = buf[i+1];
+            values[i] = buf[i+3];
         }
 
         return true;
     }
 
-    uint8_t values[16];
+    uint8_t groupID; // Which enable group is being set
+    uint8_t setting; // Context dependent, e.g. may be a duty cycle or a gain setting
+    uint8_t values[16]; // Bit mask for 128 electrodes
 };
 
 struct BulkCapacitanceMsg {
     static const uint8_t ID = 2;
     static const uint8_t MAX_VALUES = 16;
 
-    BulkCapacitanceMsg() : start_index(0), count(0) {}
+    BulkCapacitanceMsg() : groupScan(0), startIndex(0), count(0) {}
 
     static int predictSize(uint8_t *buf, uint32_t length) {
-        if(length < 3) {
+        if(length < 4) {
             return 0;
         } else {
-            return buf[2] * 2 + 3;
+            return buf[3] * 2 + 4;
         }
     }
 
@@ -73,20 +88,22 @@ struct BulkCapacitanceMsg {
             return false;
         }
 
-        start_index = buf[1];
-        count = buf[2];
+        groupScan = buf[1];
+        startIndex = buf[2];
+        count = buf[3];
         if(count > MAX_VALUES) {
             return false;
         }
         for(int i=0; i<count; i++) {
-            values[i] = (uint16_t)buf[3 + i*2] + (uint16_t)buf[4 + i*2] * 256;
+            values[i] = (uint16_t)buf[4 + i*2] + (uint16_t)buf[5 + i*2] * 256;
         }
         return true;
     }
 
     void serialize(Serializer &ser) {
         ser.push(ID);
-        ser.push(start_index);
+        ser.push(groupScan);
+        ser.push(startIndex);
         ser.push(count);
         for(int i=0; i<count; i++) {
             ser.push((uint8_t)(values[i] & 0xff));
@@ -95,7 +112,8 @@ struct BulkCapacitanceMsg {
         ser.finish();
     }
 
-    uint8_t start_index;
+    uint8_t groupScan; // 0 - full scan, 1 - group scan
+    uint8_t startIndex;
     uint8_t count;
     uint16_t values[MAX_VALUES];
 };

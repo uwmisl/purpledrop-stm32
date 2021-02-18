@@ -6,6 +6,7 @@
 #include "Analog.hpp"
 #include "AppConfig.hpp"
 #include "CallbackTimer.hpp"
+#include "CircularBuffer.hpp"
 #include "EventEx.hpp"
 #include "Events.hpp"
 #include "ScanGroups.hpp"
@@ -64,12 +65,8 @@ public:
 
     void init(EventEx::EventBroker *broker, Analog *analog);
 
-    void setElectrodes(uint8_t electrodes[N_BYTES]) {
-        for(uint32_t i=0; i<N_BYTES; i++) {
-            mShiftRegA[i] = electrodes[i];
-        }
-        mShiftRegDirty = true;
-    }
+    // To be called frequently (as fast as possible) by main task
+    void poll();
 
     static void timerIrqHandler() {
         if(mSingleton) {
@@ -104,6 +101,19 @@ private:
         uint32_t count = 0;
     };
 
+    enum AsyncEvent_e : uint8_t {
+        SendActiveCap,
+        SendScanCap,
+        SendGroupCap,
+        SendElectrodeAck
+    };
+    static const uint32_t EVENT_Q_SIZE = 5;
+
+    // Store signals to send event in the main task
+    // We can't send messages from the IRQs because message serialization is not
+    // thread safe. Queue ensures events are transmitted in the correct order.
+    StaticCircularBuffer<AsyncEvent_e, EVENT_Q_SIZE> mAsyncEventQ;
+
     FSM mFsm;
 
     PinMask mShiftRegA;
@@ -111,7 +121,7 @@ private:
     uint8_t mDutyCycleA;
     uint8_t mDutyCycleB;
 
-    ScanGroups<N_PINS> mScanGroups;
+    ScanGroups<N_PINS, AppConfig::N_CAP_GROUPS> mScanGroups;
 
     /* These must be cached to ensure changes are made only when starting a new
     cycle */
@@ -126,13 +136,16 @@ private:
     uint16_t mOffsetCalibrationLowGain;
     uint8_t mLowGainFlags[N_BYTES];
     uint8_t mCalibrateStep;
-    uint16_t mGroupScanData[ScanGroups<N_PINS>::MaxGroups];
+    std::array<uint16_t, AppConfig::N_CAP_GROUPS> mGroupScanData;
+    SampleData mLastActiveSample;
     EventEx::EventHandlerFunction<events::SetElectrodes> mSetElectrodesHandler;
     EventEx::EventHandlerFunction<events::SetGain> mSetGainHandler;
     EventEx::EventHandlerFunction<events::CapOffsetCalibrationRequest> mCapOffsetCalibrationRequestHandler;
+
     EventEx::EventBroker *mBroker;
     Analog *mAnalog;
 
+    // Pointer to the singleton class instance for static methods
     static HV507 *mSingleton;
 
     void callback();
@@ -150,4 +163,6 @@ private:
     void unblank() { BL::setOutput(true); };
     bool driveFsm();
     void groupScan();
+
+    void handleSetElectrodes(events::SetElectrodes &e);
 };

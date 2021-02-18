@@ -68,5 +68,7 @@ struct AppConfig {
 
     static const uint32_t N_TEMP_SENSOR = 4;
     static const uint32_t TEMP_READ_PERIOD = 250000; // us
+
+    static const uint32_t N_CAP_GROUPS = 5;
 };
 

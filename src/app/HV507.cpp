@@ -44,14 +44,12 @@ void HV507::init(EventEx::EventBroker *broker, Analog *analog) {
 
     calibrateOffset();
 
-    mSetElectrodesHandler.setFunction([this](auto &e) { setElectrodes(e.values); });
+    mSetElectrodesHandler.setFunction([this](auto &e) { handleSetElectrodes(e); });
     mBroker->registerHandler(&mSetElectrodesHandler);
     mSetGainHandler.setFunction([this](auto &e) { handleSetGain(e); });
     mBroker->registerHandler(&mSetGainHandler);
     mCapOffsetCalibrationRequestHandler.setFunction([this](auto &) { this->mCalibrateStep = CALSTEP_REQUEST; });
     mBroker->registerHandler(&mCapOffsetCalibrationRequestHandler);
-
-
 
     // Kick off asynchronous drive
     SchedulingTimer::init();
@@ -59,14 +57,48 @@ void HV507::init(EventEx::EventBroker *broker, Analog *analog) {
     SchedulingTimer::schedule(DRIVE_PERIOD_US);
 }
 
+void HV507::poll() {
+    while(mAsyncEventQ.count() > 0) {
+        AsyncEvent_e e = mAsyncEventQ.pop();
+        if(e == AsyncEvent_e::SendActiveCap) {
+            // Send active capacitance message
+            auto &sample = mLastActiveSample;
+            events::CapActive event(sample.sample0 + mOffsetCalibration, sample.sample1);
+            mBroker->publish(event);
+        } else if(e == AsyncEvent_e::SendGroupCap) {
+            events::CapGroups event;
+            event.measurements = mGroupScanData;
+            mBroker->publish(event);
+        } else if(e == AsyncEvent_e::SendScanCap) {
+            events::CapScan event;
+            event.measurements = mScanData;
+            mBroker->publish(event);
+        } else if(e == AsyncEvent_e::SendElectrodeAck) {
+            events::ElectrodesUpdated event;
+            mBroker->publish(event);
+        }
+    }
+}
+
 void HV507::groupScan() {
-    memset(mGroupScanData, 0, sizeof(mGroupScanData));
+    mGroupScanData.fill(0);
     if(!mScanGroups.isAnyGroupActive()) {
         return;
     }
-    for(uint32_t group=0; group<mScanGroups.MaxGroups; group++) {
+    for(uint32_t group=0; group<AppConfig::N_CAP_GROUPS; group++) {
         if(mScanGroups.isGroupActive(group)) {
             mShadowShiftReg = mScanGroups.getGroupMask(group);
+            uint16_t calibration_offset;
+            uint32_t sample_delay;
+            if((mScanGroups.getGroupSetting(group) & 1) == GainSetting::LOW) {
+                calibration_offset = mOffsetCalibrationLowGain;
+                sample_delay = AppConfig::SampleDelayLowGain();
+                GAIN_SEL::setOutput(true);
+            } else {
+                sample_delay = AppConfig::SampleDelay();
+                calibration_offset = mOffsetCalibration;
+                GAIN_SEL::setOutput(false);
+            }
             blank();
             // Presently assuming the SPI transfer time is more than enough blanking time,
             // so this is not adjustable 
@@ -75,13 +107,16 @@ void HV507::groupScan() {
 
             // Use 10,000 + group number to trigger on a particular group measurement
             bool fire_sync_pulse = AppConfig::ScanSyncPin() == (int32_t)(10000 + group);
-            SampleData sample = sampleCapacitance(AppConfig::SampleDelay(), fire_sync_pulse);
-            if(mFsm.count < mScanGroups.MaxGroups) {
-                mGroupScanData[group] = sample.sample1 - sample.sample0;
+            SampleData sample = sampleCapacitance(sample_delay, fire_sync_pulse);
+            if(mFsm.count < AppConfig::N_CAP_GROUPS) {
+                mGroupScanData[group] = sample.sample1 - sample.sample0 - calibration_offset;
+                if(mGroupScanData[group] > 32767) {
+                    mGroupScanData[group] = 0;
+                }
             }
         }
     }
-    // TODO: Fire event with new group scan data
+    mAsyncEventQ.push(AsyncEvent_e::SendGroupCap);
 }
 
 bool HV507::driveFsm() {
@@ -89,8 +124,10 @@ bool HV507::driveFsm() {
         SchedulingTimer::reset();
         blank();
         if(mFsm.top == TopState_e::DriveN) {
+            blank();
             setPolarity(false);
         } else {
+            blank();
             setPolarity(true);
         }
         // Write both enable groups
@@ -99,16 +136,20 @@ bool HV507::driveFsm() {
         }
         loadShiftRegister(mShadowShiftReg);
         latchShiftRegister();
+        if(mShiftRegDirty) {
+            mShiftRegDirty = false;
+            mAsyncEventQ.push(AsyncEvent_e::SendElectrodeAck);
+        }
 
         if(mFsm.top == TopState_e::DriveN) {
             unblank();
         } else {
+            // Active capacitance is always done at high gain
+            GAIN_SEL::setOutput(false);
             // Scan sync pin -1 causes sync pulse on active capacitance measurement
             bool fire_sync_pulse = AppConfig::ScanSyncPin() == -1;
-            SampleData sample = sampleCapacitance(AppConfig::SampleDelay(), fire_sync_pulse);
-            // Send active capacitance message
-            events::CapActive event(sample.sample0 + mOffsetCalibration, sample.sample1);
-            mBroker->publish(event);
+            mLastActiveSample = sampleCapacitance(AppConfig::SampleDelay(), fire_sync_pulse);
+            mAsyncEventQ.push(AsyncEvent_e::SendActiveCap);
         }
 
         // Determine what intermediate steps are needed
@@ -137,7 +178,7 @@ bool HV507::driveFsm() {
         }
 
         uint8_t min_duty = std::min(mDutyCycleA, mDutyCycleB);
-        int32_t wait_time = DRIVE_PERIOD_US * min_duty / 256 - SchedulingTimer::time_us();
+        int32_t wait_time = (DRIVE_PERIOD_US * min_duty) / 255 - SchedulingTimer::time_us();
         if(wait_time < 0) {
             wait_time = 0;
         }
@@ -145,7 +186,10 @@ bool HV507::driveFsm() {
         return false;
     } else if(mFsm.drive == DriveState_e::WaitIntermediate) {
         uint8_t max_duty = std::max(mDutyCycleA, mDutyCycleB);
-        uint32_t wait_time = DRIVE_PERIOD_US * max_duty / 256 - SchedulingTimer::time_us();
+        int32_t wait_time = DRIVE_PERIOD_US * max_duty / 255 - SchedulingTimer::time_us();
+        if(wait_time < 0) {
+            wait_time = 0;
+        }
         latchShiftRegister();
         mFsm.drive = DriveState_e::EndPulse;
         SchedulingTimer::schedule(wait_time);
@@ -162,8 +206,8 @@ bool HV507::driveFsm() {
 void HV507::callback() {
     if(mCalibrateStep == CALSTEP_REQUEST) {
         // When requested, setup the correct polarity, then allow a cycle to stabilize
+        blank();
         setPolarity(true);
-        BL::setOutput(false);
         mCalibrateStep = CALSTEP_SETTLE;
         SchedulingTimer::schedule(DRIVE_PERIOD_US);
     } else if(mCalibrateStep == CALSTEP_SETTLE) {
@@ -178,8 +222,8 @@ void HV507::callback() {
         if(driveFsm()) {
             // drive sub state machine finished
             mFsm.top = TopState_e::MeasureGroups;
-            setPolarity(true);
             blank();
+            setPolarity(true);
             SchedulingTimer::schedule(1);
             mCyclesSinceScan++;
         }
@@ -191,9 +235,7 @@ void HV507::callback() {
         if(mCyclesSinceScan >= SCAN_PERIOD) {
             mCyclesSinceScan = 0;
             scan();
-            events::CapScan event;
-            event.measurements = mScanData;
-            mBroker->publish(event);
+            mAsyncEventQ.push(AsyncEvent_e::SendScanCap);
         }
 
         if(driveFsm()) {
@@ -273,10 +315,10 @@ void HV507::loadShiftRegister(PinMask shift_reg) {
 }
 
 void HV507::latchShiftRegister() {
-    LE::setOutput(false);
+    LE::setOutput(true);
     // Per datasheet, min LE pulse width is 80ns
     modm::delay(80ns);
-    LE::setOutput(true);
+    LE::setOutput(false);
 }
 
 void HV507::calibrateOffset() {
@@ -329,6 +371,25 @@ typename HV507::SampleData HV507::sampleCapacitance(uint32_t sample_delay_ns, bo
         INT_RESET::setOutput(true);
     }
     return ret;
+}
+
+void HV507::handleSetElectrodes(events::SetElectrodes &e) {
+    if(e.groupID >= 100) {
+        uint8_t scanGroup = e.groupID - 100;
+        mScanGroups.setGroup(scanGroup, e.setting, e.values);
+    } else if(e.groupID == 0) {
+        for(uint32_t i=0; i<N_BYTES; i++) {
+            mShiftRegA[i] = e.values[i];
+        }
+        mDutyCycleA = e.setting;
+        mShiftRegDirty = true;
+    } else if(e.groupID == 1) {
+        for(uint32_t i=0; i<N_BYTES; i++) {
+            mShiftRegB[i] = e.values[i];
+        }
+        mDutyCycleB = e.setting;
+        mShiftRegDirty = true;
+    }
 }
 
 void HV507::handleSetGain(events::SetGain &e) {

@@ -14,7 +14,11 @@ using namespace EventEx;
  */
 struct Comms {
 
-    Comms() : mCapScanTimer(CapScanTxPeriod * CapScanMsgSize / AppConfig::N_PINS) {}
+    Comms() :
+        mCapScanTimer(CapScanTxPeriod * CapScanMsgSize / AppConfig::N_PINS),
+        mParameterTxTimer(ParameterTxPeriod)
+
+    {}
 
     void init(
         EventBroker *broker,
@@ -35,11 +39,13 @@ private:
     MessageFramer<Messages> mFramer;
 
     PeriodicPollingTimer mCapScanTimer;
+    PeriodicPollingTimer mParameterTxTimer;
     uint16_t mCapScanData[AppConfig::N_PINS];
     uint32_t mCapScanTxPos;
     bool mCapScanDataDirty;
     static const uint32_t CapScanMsgSize = 8;
     static const uint32_t CapScanTxPeriod = 100000;
+    static const uint32_t ParameterTxPeriod = 50000; // us
 
     uint32_t mParamaterDescriptorTxPos;
 
@@ -49,6 +55,7 @@ private:
     // Allocate storage for event handlers
     EventHandlerFunction<events::CapScan> mCapScanHandler;
     EventHandlerFunction<events::CapActive> mCapActiveHandler;
+    EventHandlerFunction<events::CapGroups> mCapGroupsHandler;
     EventHandlerFunction<events::ElectrodesUpdated> mElectrodesUpdatedHandler;
     EventHandlerFunction<events::TemperatureMeasurement> mTemperatureMeasurementHandler;
     EventHandlerFunction<events::HvRegulatorUpdate> mHvRegulatorUpdateHandler;
@@ -56,6 +63,7 @@ private:
     void ProcessMessage(uint8_t *buf, uint16_t len);
     void HandleCapActive(events::CapActive &e);
     void HandleCapScan(events::CapScan &e);
+    void HandleCapGroups(events::CapGroups &e);
     void HandleElectrodesUpdated(events::ElectrodesUpdated &e);
     void HandleTemperatureMeasurement(events::TemperatureMeasurement &e);
     void HandleHvRegulatorUpdate(events::HvRegulatorUpdate &e);

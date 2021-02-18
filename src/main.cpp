@@ -47,7 +47,6 @@ EventEx::EventBroker broker;
 Comms comms;
 HvRegulator hvRegulator;
 TempSensors tempSensors;
-PeriodicPollingTimer mainLoopTimer(1000, true);
 PwmOutput pwmOutput;
 
 using LoopTimingPin = GpioB11;
@@ -88,14 +87,13 @@ int main() {
 
     LoopTimingPin::setOutput(Gpio::OutputType::PushPull);
     while(1) {
-        if(mainLoopTimer.poll()) {
-            LoopTimingPin::set();
-            comms.poll();
-            tempSensors.poll();
-            hvRegulator.poll();
-            pwmOutput.poll();
-            LoopTimingPin::reset();
-        }
+        LoopTimingPin::set();
+        comms.poll();
+        tempSensors.poll();
+        hvRegulator.poll();
+        pwmOutput.poll();
+        hvControl.poll();
+        LoopTimingPin::reset();
     }
 }
 

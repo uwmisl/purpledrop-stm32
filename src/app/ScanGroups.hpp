@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-/** Datastructure for representing capacitance scan groups
+/** Data structure for representing capacitance scan groups
  * 
  * Used for fine grained control of capacitance measurement
  * 
@@ -9,17 +9,15 @@
  * between scan group settings and the HV507 controller that implements
  * scanning.
  */
-template <uint32_t N_PINS>
+template <uint32_t N_PINS, uint32_t MAX_GROUPS>
 class ScanGroups {
 public:
-    typedef std::array<uint8_t, (N_PINS + 7) / 8> PinMask;
-
-    /* Max number of groups supported */ 
-    static const uint32_t MaxGroups = 5;
+    static const uint32_t N_BYTES = (N_PINS + 7) / 8;
+    typedef std::array<uint8_t, N_BYTES> PinMask;
 
     bool isAnyGroupActive() {
-        for(uint8_t group = 0; group < MaxGroups; group++) {
-            if(mGroupSizes[group] > 0) {
+        for(uint8_t group = 0; group < MAX_GROUPS; group++) {
+            if(isGroupActive(group)) {
                 return true;
             }
         }
@@ -27,15 +25,27 @@ public:
     }
 
     bool isGroupActive(uint8_t group) {
-        if(group < MaxGroups && mGroupSizes[group] > 0) {
-            return true;
+        for(uint8_t x : mGroupMasks[group]) {
+            if(x != 0) {
+                return true;
+            }
         }
         return false;
     }
 
+    void setGroup(uint8_t group, uint8_t setting, uint8_t *mask) {
+        if(group >= MAX_GROUPS) {
+            return;
+        }
+        mGroupSettings[group] = setting;
+        for(uint32_t i=0; i<N_BYTES; i++) {
+            mGroupMasks[group][i] = mask[i];
+        }
+    }
+
     PinMask getGroupMask(uint8_t group) {
-        if(group < MaxGroups) {
-            return mGroupChannels[group];
+        if(group < MAX_GROUPS) {
+            return mGroupMasks[group];
         } else {
             return {0};
         }
@@ -43,7 +53,7 @@ public:
 
     /** Get setting byte for a group */
     uint8_t getGroupSetting(uint8_t group) {
-        if(group < MaxGroups) {
+        if(group < MAX_GROUPS) {
             return mGroupSettings[group];
         } else {
             return 0;
@@ -51,7 +61,6 @@ public:
     }
 
 private:
-    PinMask mGroupChannels[MaxGroups];
-    uint8_t mGroupSizes[MaxGroups];
-    uint8_t mGroupSettings[MaxGroups];
+    PinMask mGroupMasks[MAX_GROUPS];
+    uint8_t mGroupSettings[MAX_GROUPS];
 };
