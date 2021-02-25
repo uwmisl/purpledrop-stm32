@@ -79,10 +79,11 @@ struct DutyCycleUpdated : public Event {
 };
 
 struct FeedbackCommand : public Event {
-    float targetCapacitance;
-    uint8_t inputGroupsMask;
-    uint8_t outputGroup;
-    uint8_t enable;
+    float target;
+    uint8_t mode;
+    uint8_t measureGroupsPMask;
+    uint8_t measureGroupsNMask;
+    uint8_t baseline;
 };
 
 struct SetParameter : public Event {

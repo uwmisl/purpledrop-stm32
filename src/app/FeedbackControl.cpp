@@ -1,5 +1,11 @@
 #include "FeedbackControl.hpp"
 
+enum ControlMode_e : uint8_t {
+    Disabled = 0,
+    Normal = 1,
+    Differential = 2
+};
+
 void FeedbackControl::init(EventBroker *event_broker) {
     mEventBroker = event_broker;
     mLastError = 0.0;
@@ -11,21 +17,27 @@ void FeedbackControl::init(EventBroker *event_broker) {
 }
 
 void FeedbackControl::HandleCapGroups(events::CapGroups &event) {
-    float x = 0.0;
+    int32_t x = 0.0;
     float kp = AppConfig::FeedbackKp();
     float ki = AppConfig::FeedbackKi();
     float kd = AppConfig::FeedbackKd();
 
-    if(mCmd.enable == 0) {
+    if(mCmd.mode == Disabled) {
         return;
     }
 
+    // Always Sum all of the positive feedback inputs
+    // In differential mode, also sum the negative feedback inputs
     for(uint32_t ch=0; ch<event.measurements.size(); ch++) {
-        if(mCmd.inputGroupsMask & (1<<ch)) {
+        if(mCmd.measureGroupsPMask & (1<<ch)) {
             x += event.measurements[ch];
         }
+        if(mCmd.mode == Differential && mCmd.measureGroupsNMask & (1<<ch)) {
+            x -= event.measurements[ch];
+        }
     }
-    float error = mCmd.targetCapacitance - x;
+
+    float error = mCmd.target - x;
 
     mIntegral += error * ki;
     if(mIntegral * ki > 40) {
@@ -34,20 +46,35 @@ void FeedbackControl::HandleCapGroups(events::CapGroups &event) {
         mIntegral = -40 / ki;
     }
 
-    float dutycycle = 200 + error * kp + mIntegral * ki + (error - mLastError) * kd;
-    if(dutycycle > 255) {
-        dutycycle = 255;
-    } else if(dutycycle < 0) {
-        dutycycle = 0;
+    int16_t feedback = (int16_t)(error * kp + mIntegral * ki + (error - mLastError) * kd);
+    mLastError = error;
+    int16_t pos_output, neg_output;
+    if(feedback > 0) {
+        pos_output = (int16_t)mCmd.baseline + feedback;
+        if(pos_output > 255) {
+            pos_output = 255;
+        }
+        neg_output = pos_output - feedback;
+        if(neg_output < 0) {
+            neg_output = 0;
+        }
+    } else {
+        neg_output = (int16_t)mCmd.baseline - feedback;
+        if(neg_output > 255) {
+            neg_output = 255;
+        }
+        pos_output = neg_output - feedback;
+        if(pos_output < 0) {
+            pos_output = 0;
+        }
     }
-
+    
     events::SetDutyCycle set_event;
     set_event.updateA = true;
-    set_event.updateB = false;
-    set_event.dutyCycleA = (uint8_t)dutycycle;
+    set_event.updateB = true;
+    set_event.dutyCycleA = (uint8_t)pos_output;
+    set_event.dutyCycleB = (uint8_t)neg_output;
     mEventBroker->publish(set_event);
-
-    mLastError = error;
 }
 
 void FeedbackControl::HandleFeedbackCommand(events::FeedbackCommand &e) {

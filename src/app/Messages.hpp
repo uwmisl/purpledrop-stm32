@@ -483,25 +483,27 @@ struct FeedbackCommandMsg {
     static int predictSize(uint8_t *buf, uint32_t length) {
         (void)buf;
         (void)length;
-        return 8;
+        return 9;
     }
 
     bool fill(uint8_t *buf, uint32_t length) {
-        if(length < 8) {
+        if(length < 9) {
             return false;
         } else {
-            targetCapacitance = *((float*)&buf[1]);
-            inputGroupsMask = buf[5];
-            outputGroup = buf[6];
-            enable = buf[7];
+            target = *((float*)&buf[1]);
+            mode = buf[5];
+            measureGroupsPMask = buf[6];
+            measureGroupsNMask = buf[7];
+            baseline = buf[8];
             return true;
         }
     }
 
-    float targetCapacitance;
-    uint8_t inputGroupsMask;
-    uint8_t outputGroup;
-    uint8_t enable;
+    float target;
+    uint8_t mode;
+    uint8_t measureGroupsPMask;
+    uint8_t measureGroupsNMask;
+    uint8_t baseline;
 };
 
 #define PREDICT(msgname) case msgname::ID: \

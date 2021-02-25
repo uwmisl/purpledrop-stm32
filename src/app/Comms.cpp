@@ -93,10 +93,11 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
                 FeedbackCommandMsg msg;
                 events::FeedbackCommand event;
                 msg.fill(buf, len);
-                event.targetCapacitance = msg.targetCapacitance;
-                event.inputGroupsMask = msg.inputGroupsMask;
-                event.outputGroup = msg.outputGroup;
-                event.enable = msg.enable;
+                event.target = msg.target;
+                event.mode = msg.mode;
+                event.measureGroupsNMask = msg.measureGroupsNMask;
+                event.measureGroupsPMask = msg.measureGroupsPMask;
+                event.baseline = msg.baseline;
                 mBroker->publish(event);
             }
             break;

@@ -2,13 +2,6 @@
 
 #include "Events.hpp"
 
-struct ControlCmd {
-    float target;
-    uint8_t inputGroupsMask;
-    uint8_t outputGroup;
-    uint8_t enable;
-};
-
 class FeedbackControl {
 public:
 
