@@ -30,6 +30,8 @@ void Comms::init(
     mBroker->registerHandler(&mTemperatureMeasurementHandler);
     mHvRegulatorUpdateHandler.setFunction([this](auto &e) { HandleHvRegulatorUpdate(e); });
     mBroker->registerHandler(&mHvRegulatorUpdateHandler);
+    mDutyCycleUpdatedHandler.setFunction([this](auto &e){ HandleDutyCycleUdpated(e); });
+    mBroker->registerHandler(&mDutyCycleUpdatedHandler);
 }
 
 void Comms::poll() {
@@ -83,6 +85,18 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
                 for(uint32_t i=0; i<AppConfig::N_BYTES; i++) {
                     event.values[i] = msg.values[i];
                 }
+                mBroker->publish(event);
+            }
+            break;
+        case FeedbackCommandMsg::ID:
+            {
+                FeedbackCommandMsg msg;
+                events::FeedbackCommand event;
+                msg.fill(buf, len);
+                event.targetCapacitance = msg.targetCapacitance;
+                event.inputGroupsMask = msg.inputGroupsMask;
+                event.outputGroup = msg.outputGroup;
+                event.enable = msg.enable;
                 mBroker->publish(event);
             }
             break;
@@ -230,6 +244,15 @@ void Comms::HandleTemperatureMeasurement(TemperatureMeasurement &e) {
     for(uint32_t i=0; i<AppConfig::N_TEMP_SENSOR; i++) {
         msg.temps[i] = e.measurements[i];
     }
+    msg.serialize(ser);
+    mFlush();
+}
+
+void Comms::HandleDutyCycleUdpated(DutyCycleUpdated &e) {
+    DutyCycleUpdatedMsg msg;
+    Serializer ser(mTxQueue);
+    msg.dutyCycleA = e.dutyCycleA;
+    msg.dutyCycleB = e.dutyCycleB;
     msg.serialize(ser);
     mFlush();
 }

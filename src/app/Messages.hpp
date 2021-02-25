@@ -464,6 +464,46 @@ struct GpioControlMsg {
     uint8_t flags;
 };
 
+struct DutyCycleUpdatedMsg {
+    static const uint8_t ID = 15;
+
+    void serialize(Serializer &ser) {
+        ser.push(ID);
+        ser.push(dutyCycleA);
+        ser.push(dutyCycleB);
+        ser.finish();
+    }
+    uint8_t dutyCycleA;
+    uint8_t dutyCycleB;
+};
+
+struct FeedbackCommandMsg {
+    static const uint8_t ID = 16;
+
+    static int predictSize(uint8_t *buf, uint32_t length) {
+        (void)buf;
+        (void)length;
+        return 8;
+    }
+
+    bool fill(uint8_t *buf, uint32_t length) {
+        if(length < 8) {
+            return false;
+        } else {
+            targetCapacitance = *((float*)&buf[1]);
+            inputGroupsMask = buf[5];
+            outputGroup = buf[6];
+            enable = buf[7];
+            return true;
+        }
+    }
+
+    float targetCapacitance;
+    uint8_t inputGroupsMask;
+    uint8_t outputGroup;
+    uint8_t enable;
+};
+
 #define PREDICT(msgname) case msgname::ID: \
     return msgname::predictSize(buf, length);
 
@@ -479,6 +519,7 @@ struct Messages {
             PREDICT(CalibrateCommandMsg)
             PREDICT(DataBlobMsg)
             PREDICT(ElectrodeEnableMsg)
+            PREDICT(FeedbackCommandMsg)
             PREDICT(GpioControlMsg)
             PREDICT(ParameterDescriptorMsg)
             PREDICT(ParameterMsg)

@@ -66,6 +66,25 @@ struct SetElectrodes : public Event {
     uint8_t values[AppConfig::N_BYTES];
 };
 
+struct SetDutyCycle : public Event {
+    bool updateA;
+    bool updateB;
+    uint8_t dutyCycleA;
+    uint8_t dutyCycleB;
+};
+
+struct DutyCycleUpdated : public Event {
+    uint8_t dutyCycleA;
+    uint8_t dutyCycleB;
+};
+
+struct FeedbackCommand : public Event {
+    float targetCapacitance;
+    uint8_t inputGroupsMask;
+    uint8_t outputGroup;
+    uint8_t enable;
+};
+
 struct SetParameter : public Event {
     uint32_t paramIdx;
     ConfigOptionValue paramValue;

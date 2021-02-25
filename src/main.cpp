@@ -18,6 +18,7 @@ extern "C" {
 #include "AppConfigController.hpp"
 #include "Comms.hpp"
 #include "EventEx.hpp"
+#include "FeedbackControl.hpp"
 #include "HV507.hpp"
 #include "HvRegulator.hpp"
 #include "Max31865.hpp"
@@ -43,6 +44,7 @@ Analog analog;
 AppConfigController appConfigController;
 AuxGpios<AuxGpioArray> auxGpios;
 HV507 hvControl;
+FeedbackControl feedbackControl;
 EventEx::EventBroker broker;
 Comms comms;
 HvRegulator hvRegulator;
@@ -76,6 +78,7 @@ int main() {
     appConfigController.init(&broker);
     auxGpios.init(&broker);
     hvControl.init(&broker, &analog);
+    feedbackControl.init(&broker);
     hvRegulator.init(&broker, &analog);
     tempSensors.init(&broker);
     pwmOutput.init(&broker);

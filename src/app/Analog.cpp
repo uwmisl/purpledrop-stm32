@@ -30,6 +30,8 @@ uint16_t Analog::readIntVout() {
 
 int16_t Analog::readVhvDiff() {
     int16_t p_read, n_read;
+    // Disable interrupts because readIntVout may be called in IRQ
+    modm::atomic::Lock lck;
 
     modm::platform::Adc1::setSampleTime(Adc1::getPinChannel<VHV_FB_P>(), Adc1::SampleTime::Cycles3);
     modm::platform::Adc1::setSampleTime(Adc1::getPinChannel<VHV_FB_N>(), Adc1::SampleTime::Cycles3);

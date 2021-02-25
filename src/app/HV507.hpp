@@ -86,7 +86,8 @@ private:
     enum DriveState_e {
         Start,
         WaitIntermediate,
-        EndPulse
+        EndPulse,
+        EndCycle
     };
 
     enum GroupState_e {
@@ -107,7 +108,7 @@ private:
         SendGroupCap,
         SendElectrodeAck
     };
-    static const uint32_t EVENT_Q_SIZE = 5;
+    static const uint32_t EVENT_Q_SIZE = 16;
 
     // Store signals to send event in the main task
     // We can't send messages from the IRQs because message serialization is not
@@ -141,6 +142,7 @@ private:
     EventEx::EventHandlerFunction<events::SetElectrodes> mSetElectrodesHandler;
     EventEx::EventHandlerFunction<events::SetGain> mSetGainHandler;
     EventEx::EventHandlerFunction<events::CapOffsetCalibrationRequest> mCapOffsetCalibrationRequestHandler;
+    EventEx::EventHandlerFunction<events::SetDutyCycle> mSetDutyCycleHandler;
 
     EventEx::EventBroker *mBroker;
     Analog *mAnalog;
@@ -155,7 +157,7 @@ private:
     void latchShiftRegister();
     void calibrateOffset();
     SampleData sampleCapacitance(uint32_t sample_delay_ns, bool fire_sync_pulse);
-    void handleSetGain(events::SetGain &e);
+
     GainSetting getGain(uint32_t channel);
     void setPolarity(bool pol);
     bool getPolarity();
@@ -164,5 +166,7 @@ private:
     bool driveFsm();
     void groupScan();
 
+    void handleSetDutyCycle(events::SetDutyCycle &e);
     void handleSetElectrodes(events::SetElectrodes &e);
+    void handleSetGain(events::SetGain &e);
 };

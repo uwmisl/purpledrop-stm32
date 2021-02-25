@@ -50,6 +50,8 @@ void HV507::init(EventEx::EventBroker *broker, Analog *analog) {
     mBroker->registerHandler(&mSetGainHandler);
     mCapOffsetCalibrationRequestHandler.setFunction([this](auto &) { this->mCalibrateStep = CALSTEP_REQUEST; });
     mBroker->registerHandler(&mCapOffsetCalibrationRequestHandler);
+    mSetDutyCycleHandler.setFunction([this](auto &e){ handleSetDutyCycle(e); });
+    mBroker->registerHandler(&mSetDutyCycleHandler);
 
     // Kick off asynchronous drive
     SchedulingTimer::init();
@@ -81,8 +83,8 @@ void HV507::poll() {
 }
 
 void HV507::groupScan() {
-    mGroupScanData.fill(0);
     if(!mScanGroups.isAnyGroupActive()) {
+        mGroupScanData.fill(0);
         return;
     }
     for(uint32_t group=0; group<AppConfig::N_CAP_GROUPS; group++) {
@@ -114,6 +116,8 @@ void HV507::groupScan() {
                     mGroupScanData[group] = 0;
                 }
             }
+        } else {
+            mGroupScanData[group] = 0;
         }
     }
     mAsyncEventQ.push(AsyncEvent_e::SendGroupCap);
@@ -196,9 +200,17 @@ bool HV507::driveFsm() {
         return false;
     } else if(mFsm.drive == DriveState_e::EndPulse) {
         blank();
+        mFsm.drive = DriveState_e::EndCycle;
+        int32_t wait_time = DRIVE_PERIOD_US - SchedulingTimer::time_us();
+        if(wait_time < 0) {
+            wait_time = 0;
+        }
+        SchedulingTimer::schedule(wait_time);
+        return false;
+    } else if(mFsm.drive == DriveState_e::EndCycle) {
         mFsm.drive = DriveState_e::Start;
         return true;
-    } 
+    }
     mFsm.drive = DriveState_e::Start;
     return true;
 }
@@ -371,6 +383,19 @@ typename HV507::SampleData HV507::sampleCapacitance(uint32_t sample_delay_ns, bo
         INT_RESET::setOutput(true);
     }
     return ret;
+}
+
+void HV507::handleSetDutyCycle(events::SetDutyCycle &e) {
+    if(e.updateA) {
+        mDutyCycleA = e.dutyCycleA;
+    }
+    if(e.updateB) {
+        mDutyCycleB = e.dutyCycleB;
+    }
+    events::DutyCycleUpdated update_event;
+    update_event.dutyCycleA = mDutyCycleA;
+    update_event.dutyCycleB = mDutyCycleB;
+    mBroker->publish(update_event);
 }
 
 void HV507::handleSetElectrodes(events::SetElectrodes &e) {

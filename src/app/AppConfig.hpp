@@ -18,7 +18,11 @@ enum ConfigOptionIds : uint8_t {
     IntegratorResetDelayId = 25,
     AugmentTopPlateLowSideId = 26,
     SampleDelayLowGainId = 27,
-    TopPlatePinId = 30,\
+    TopPlatePinId = 30,
+    FeedbackGainPId = 100,
+    FeedbackGainIId = 101,
+    FeedbackGainDId = 102
+
 };
 
 union ConfigOptionValue {
@@ -54,10 +58,14 @@ struct AppConfig {
 
     static int32_t TopPlatePin() { return optionValues[TopPlatePinId].i32; }
 
+    static float FeedbackKp() { return optionValues[FeedbackGainPId].f32; }
+    static float FeedbackKi() { return optionValues[FeedbackGainIId].f32; }
+    static float FeedbackKd() { return optionValues[FeedbackGainDId].f32; }
+
     // Number of options defined in options
     static const uint32_t N_OPT_DESCRIPTOR;
     // Maximum supported ID value for options 
-    static const uint32_t MAX_OPT_ID = 64;
+    static const uint32_t MAX_OPT_ID = 128;
     static ConfigOptionDescriptor optionDescriptors[];
     // Trade some memory for access speed
     static ConfigOptionValue optionValues[MAX_OPT_ID];

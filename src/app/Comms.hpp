@@ -59,6 +59,7 @@ private:
     EventHandlerFunction<events::ElectrodesUpdated> mElectrodesUpdatedHandler;
     EventHandlerFunction<events::TemperatureMeasurement> mTemperatureMeasurementHandler;
     EventHandlerFunction<events::HvRegulatorUpdate> mHvRegulatorUpdateHandler;
+    EventHandlerFunction<events::DutyCycleUpdated> mDutyCycleUpdatedHandler;
 
     void ProcessMessage(uint8_t *buf, uint16_t len);
     void HandleCapActive(events::CapActive &e);
@@ -67,6 +68,7 @@ private:
     void HandleElectrodesUpdated(events::ElectrodesUpdated &e);
     void HandleTemperatureMeasurement(events::TemperatureMeasurement &e);
     void HandleHvRegulatorUpdate(events::HvRegulatorUpdate &e);
+    void HandleDutyCycleUdpated(events::DutyCycleUpdated &e);
 
     void PeriodicSend();
     void SendBlob(uint8_t blob_id, const uint8_t *buf, uint32_t size);
