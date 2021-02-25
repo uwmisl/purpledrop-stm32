@@ -29,6 +29,11 @@ struct CircularBuffer : public IProducer<T>, IConsumer<T> {
     virtual void clear() = 0;
 };
 
+/** Thread safe circular buffer with static allocation
+ *
+ * Note that storage is allocated for size+1, to disambiguate the head==tail
+ * state and stay lock-less
+ */
 template <typename T, int size>
 struct StaticCircularBuffer : public CircularBuffer<T>{
 public:
@@ -46,7 +51,7 @@ public:
             highwater_mark = fill_count;
         }
 #endif
-        uint32_t new_head = (head + 1) % size;
+        uint32_t new_head = (head + 1) % (size+1);
         if(new_head == tail) {
             return false; // Full
         }
@@ -64,13 +69,17 @@ public:
         }
         //uint32_t new_tail = (tail + 1) % size;
         result = buf[tail];
-        tail = (tail + 1) % size;
+        tail = (tail + 1) % (size+1);
         return result;
     }
 
     // Get the number of items in the queue
     uint32_t count() {
-        return (head - tail) % size;
+        if(head >= tail) {
+            return head - tail;
+        } else {
+            return (size+1) + head - tail;
+        }
     }
 
     void clear() {
@@ -84,7 +93,7 @@ public:
 private:
     uint32_t head;
     uint32_t tail;
-    T buf[size];
+    T buf[size+1];
 #ifdef CB_DEBUG
     uint32_t highwater_mark;
 #endif
