@@ -1,7 +1,6 @@
 # PurpleDrop STM32 Software Releases
 
-
-## 0.4.0 (pending)
+## 0.3.1 (2020-03-11)
 
 - Add controllable GPIO outputs
 - Disable timeout on PWM channels 4-15
