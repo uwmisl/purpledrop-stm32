@@ -22,12 +22,16 @@ void Comms::init(
     mBroker->registerHandler(&mCapScanHandler);
     mCapActiveHandler.setFunction([this](auto &e) { HandleCapActive(e); });
     mBroker->registerHandler(&mCapActiveHandler);
+    mCapGroupsHandler.setFunction([this](auto &e) { HandleCapGroups(e); });
+    mBroker->registerHandler(&mCapGroupsHandler);
     mElectrodesUpdatedHandler.setFunction([this](auto &e) { HandleElectrodesUpdated(e); });
     mBroker->registerHandler(&mElectrodesUpdatedHandler);
     mTemperatureMeasurementHandler.setFunction([this](auto &e) { HandleTemperatureMeasurement(e); });
     mBroker->registerHandler(&mTemperatureMeasurementHandler);
     mHvRegulatorUpdateHandler.setFunction([this](auto &e) { HandleHvRegulatorUpdate(e); });
     mBroker->registerHandler(&mHvRegulatorUpdateHandler);
+    mDutyCycleUpdatedHandler.setFunction([this](auto &e){ HandleDutyCycleUdpated(e); });
+    mBroker->registerHandler(&mDutyCycleUpdatedHandler);
 }
 
 void Comms::poll() {
@@ -76,9 +80,24 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
                 ElectrodeEnableMsg msg;
                 events::SetElectrodes event;
                 msg.fill(buf, len);
-                for(uint32_t i=0; i<AppConfig::N_HV507 * 8; i++) {
+                event.groupID = msg.groupID;
+                event.setting = msg.setting;
+                for(uint32_t i=0; i<AppConfig::N_BYTES; i++) {
                     event.values[i] = msg.values[i];
                 }
+                mBroker->publish(event);
+            }
+            break;
+        case FeedbackCommandMsg::ID:
+            {
+                FeedbackCommandMsg msg;
+                events::FeedbackCommand event;
+                msg.fill(buf, len);
+                event.target = msg.target;
+                event.mode = msg.mode;
+                event.measureGroupsNMask = msg.measureGroupsNMask;
+                event.measureGroupsPMask = msg.measureGroupsPMask;
+                event.baseline = msg.baseline;
                 mBroker->publish(event);
             }
             break;
@@ -184,6 +203,19 @@ void Comms::HandleCapScan(CapScan &e) {
     mCapScanDataDirty = true;
 }
 
+void Comms::HandleCapGroups(CapGroups &e) {
+    BulkCapacitanceMsg msg;
+    Serializer ser(mTxQueue);
+    msg.groupScan = 1;
+    msg.count = e.measurements.size();
+    msg.startIndex = 0;
+    for(uint32_t i=0; i<e.measurements.size() && i<msg.MAX_VALUES; i++) {
+        msg.values[i] = e.measurements[i];
+    }
+    msg.serialize(ser);
+    mFlush();
+}
+
 void Comms::HandleElectrodesUpdated(ElectrodesUpdated &e) {
     (void)e;
     CommandAckMsg msg;
@@ -217,6 +249,15 @@ void Comms::HandleTemperatureMeasurement(TemperatureMeasurement &e) {
     mFlush();
 }
 
+void Comms::HandleDutyCycleUdpated(DutyCycleUpdated &e) {
+    DutyCycleUpdatedMsg msg;
+    Serializer ser(mTxQueue);
+    msg.dutyCycleA = e.dutyCycleA;
+    msg.dutyCycleB = e.dutyCycleB;
+    msg.serialize(ser);
+    mFlush();
+}
+
 void Comms::PeriodicSend() {
     if(mCapScanTimer.poll()) {
         if((mCapScanTxPos >= AppConfig::N_PINS) && mCapScanDataDirty) {
@@ -226,13 +267,14 @@ void Comms::PeriodicSend() {
         if(mCapScanTxPos < AppConfig::N_PINS) {
             BulkCapacitanceMsg msg;
             Serializer ser(mTxQueue);
-            msg.start_index = mCapScanTxPos;
+            msg.groupScan = 0;
+            msg.startIndex = mCapScanTxPos;
             msg.count = AppConfig::N_PINS - mCapScanTxPos;
             if(msg.count > CapScanMsgSize) {
                 msg.count = CapScanMsgSize;
             }
             for(uint32_t i=0; i<msg.count; i++) {
-                msg.values[i] = mCapScanData[i + msg.start_index];
+                msg.values[i] = mCapScanData[i + msg.startIndex];
             }
             mCapScanTxPos += msg.count;
             msg.serialize(ser);
@@ -240,7 +282,7 @@ void Comms::PeriodicSend() {
         }
     }
 
-    if(mParamaterDescriptorTxPos < AppConfig::N_OPT_DESCRIPTOR) {
+    if(mParameterTxTimer.poll() && mParamaterDescriptorTxPos < AppConfig::N_OPT_DESCRIPTOR) {
         ParameterDescriptorMsg msg;
         ConfigOptionDescriptor *desc = &AppConfig::optionDescriptors[mParamaterDescriptorTxPos];
         Serializer ser(mTxQueue);

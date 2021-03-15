@@ -18,10 +18,12 @@ extern "C" {
 #include "AppConfigController.hpp"
 #include "Comms.hpp"
 #include "EventEx.hpp"
+#include "FeedbackControl.hpp"
 #include "HV507.hpp"
 #include "HvRegulator.hpp"
 #include "Max31865.hpp"
 #include "PwmOutput.hpp"
+#include "ScanGroups.hpp"
 #include "SystemClock.hpp"
 #include "TempSensors.hpp"
 
@@ -41,12 +43,12 @@ using AuxGpioArray = GpioArray<
 Analog analog;
 AppConfigController appConfigController;
 AuxGpios<AuxGpioArray> auxGpios;
-HV507<> hvControl;
+HV507 hvControl;
+FeedbackControl feedbackControl;
 EventEx::EventBroker broker;
 Comms comms;
 HvRegulator hvRegulator;
 TempSensors tempSensors;
-PeriodicPollingTimer mainLoopTimer(1000, true);
 PwmOutput pwmOutput;
 
 using LoopTimingPin = GpioB11;
@@ -76,6 +78,7 @@ int main() {
     appConfigController.init(&broker);
     auxGpios.init(&broker);
     hvControl.init(&broker, &analog);
+    feedbackControl.init(&broker);
     hvRegulator.init(&broker, &analog);
     tempSensors.init(&broker);
     pwmOutput.init(&broker);
@@ -87,15 +90,13 @@ int main() {
 
     LoopTimingPin::setOutput(Gpio::OutputType::PushPull);
     while(1) {
-        if(mainLoopTimer.poll()) {
-            LoopTimingPin::set();
-            comms.poll();
-            tempSensors.poll();
-            hvRegulator.poll();
-            pwmOutput.poll();
-            hvControl.drive();
-            LoopTimingPin::reset();
-        }
+        LoopTimingPin::set();
+        comms.poll();
+        tempSensors.poll();
+        hvRegulator.poll();
+        pwmOutput.poll();
+        hvControl.poll();
+        LoopTimingPin::reset();
     }
 }
 
