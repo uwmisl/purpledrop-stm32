@@ -16,6 +16,7 @@ CMakeFiles
 CMakeCache.txt
 src/version.cpp
 __pycache__
+*.dfu
 
 # editor files
 .vscode/*
