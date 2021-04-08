@@ -9,6 +9,7 @@
 #include "CircularBuffer.hpp"
 #include "EventEx.hpp"
 #include "Events.hpp"
+#include "InvertableGpio.hpp"
 #include "ScanGroups.hpp"
 #include "SystemClock.hpp"
 
@@ -17,17 +18,17 @@ using namespace modm::literals;
 using namespace std::chrono_literals;
 
 using SPI = SpiMaster3;
-using SCK = GpioC10;
-using MOSI = GpioC12;
-using POL = GpioB5;
-using BL = GpioB4;
-using LE = GpioC13;
+using SCK = InvertableGpio<GpioC10>;
+using MOSI = InvertableGpio<GpioC12>;
+using POL = InvertableGpio<GpioB5>;
+using BL = InvertableGpio<GpioB4>;
+using LE = InvertableGpio<GpioC13>;
 using INT_RESET = GpioC2;
 using INT_VOUT = GpioA2;
 using GAIN_SEL = GpioC3;
 // Debug IO, useful for syncing scope capacitance scan
 using SCAN_SYNC = GpioC1;
-using AUGMENT_ENABLE = GpioA3;
+using AUGMENT_ENABLE = InvertableGpio<GpioA3>;
 
 using SchedulingTimer = CallbackTimer<Timer5>;
 

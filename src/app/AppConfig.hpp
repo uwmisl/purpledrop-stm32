@@ -19,9 +19,11 @@ enum ConfigOptionIds : uint8_t {
     AugmentTopPlateLowSideId = 26,
     SampleDelayLowGainId = 27,
     TopPlatePinId = 30,
+    InvertedOptoId = 75,
     FeedbackGainPId = 100,
     FeedbackGainIId = 101,
     FeedbackGainDId = 102
+
 
 };
 
@@ -58,6 +60,7 @@ struct AppConfig {
 
     static int32_t TopPlatePin() { return optionValues[TopPlatePinId].i32; }
 
+    static bool InvertedOpto() { return optionValues[InvertedOptoId].i32 != 0; }
     static float FeedbackKp() { return optionValues[FeedbackGainPId].f32; }
     static float FeedbackKi() { return optionValues[FeedbackGainIId].f32; }
     static float FeedbackKd() { return optionValues[FeedbackGainDId].f32; }

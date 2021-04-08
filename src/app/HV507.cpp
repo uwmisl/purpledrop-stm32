@@ -35,7 +35,7 @@ void HV507::init(EventEx::EventBroker *broker, Analog *analog) {
     AUGMENT_ENABLE::setOutput(false);
     POL::setOutput(false);
     BL::setOutput(false);
-    LE::setOutput(true);
+    LE::setOutput(false);
     POL::configure(Gpio::OutputType::PushPull);
     BL::configure(Gpio::OutputType::PushPull);
     LE::configure(Gpio::OutputType::PushPull);
@@ -60,6 +60,25 @@ void HV507::init(EventEx::EventBroker *broker, Analog *analog) {
 }
 
 void HV507::poll() {
+    // Update settings for inverted opto isolator
+    if(AppConfig::InvertedOpto()) {
+        SPI::setDataMode(SPI::DataMode::Mode2); // Set CPOL = 1, inverted clock
+        POL::setInvert(true);
+        BL::setInvert(true);
+        LE::setInvert(true);
+        SCK::setInvert(true);
+        MOSI::setInvert(true);
+        AUGMENT_ENABLE::setInvert(true);
+    } else {
+        SPI::setDataMode(SPI::DataMode::Mode0); // Set CPOL = 0, non-inverted clock
+        POL::setInvert(false);
+        BL::setInvert(false);
+        LE::setInvert(false);
+        SCK::setInvert(false);
+        MOSI::setInvert(false);
+        AUGMENT_ENABLE::setInvert(false);
+    }
+
     while(mAsyncEventQ.count() > 0) {
         AsyncEvent_e e = mAsyncEventQ.pop();
         if(e == AsyncEvent_e::SendActiveCap) {
@@ -90,6 +109,11 @@ void HV507::groupScan() {
     for(uint32_t group=0; group<AppConfig::N_CAP_GROUPS; group++) {
         if(mScanGroups.isGroupActive(group)) {
             mShadowShiftReg = mScanGroups.getGroupMask(group);
+            if(AppConfig::InvertedOpto()) {
+                for(size_t i=0; i<mShadowShiftReg.size(); i++) {
+                    mShadowShiftReg[i] = ~mShadowShiftReg[i];
+                }
+            }
             uint16_t calibration_offset;
             uint32_t sample_delay;
             if((mScanGroups.getGroupSetting(group) & 1) == GainSetting::LOW) {
@@ -136,8 +160,13 @@ bool HV507::driveFsm() {
         }
         // Write both enable groups
         for(uint32_t b=0; b<N_BYTES; b++) {
-            mShadowShiftReg[b] = mShiftRegA[b] | mShiftRegB[b];
+            if(AppConfig::InvertedOpto()) {
+                mShadowShiftReg[b] = ~mShiftRegA[b] & ~mShiftRegB[b];
+            } else {
+                mShadowShiftReg[b] = mShiftRegA[b] | mShiftRegB[b];
+            }
         }
+
         loadShiftRegister(mShadowShiftReg);
         latchShiftRegister();
         if(mShiftRegDirty) {
@@ -168,6 +197,11 @@ bool HV507::driveFsm() {
             } else {
                 for(uint32_t i=0; i<N_BYTES; i++) {
                     mIntermediateShiftReg[i] = mShiftRegA[i];
+                }
+            }
+            if(AppConfig::InvertedOpto()) {
+                for(size_t i=0; i<mIntermediateShiftReg.size(); i++) {
+                    mIntermediateShiftReg[i] = ~mIntermediateShiftReg[i];
                 }
             }
         }
@@ -263,7 +297,11 @@ void HV507::scan() {
     uint16_t offset_calibration;
     // Clear all bits in the shift register except the first
     for(uint32_t i=0; i < N_BYTES - 1; i++) {
-        SPI::transferBlocking(0);
+        if(AppConfig::InvertedOpto()) {
+            SPI::transferBlocking(0xff);
+        } else {
+            SPI::transferBlocking(0);
+        }
     }
     SPI::transferBlocking(0x80);
 
@@ -293,9 +331,9 @@ void HV507::scan() {
             SCK::setOutput(false);
             continue;
         }
-        LE::setOutput(false);
-        modm::delay(80ns);
         LE::setOutput(true);
+        modm::delay(80ns);
+        LE::setOutput(false);
         modm::delay(std::chrono::nanoseconds(AppConfig::ScanBlankDelay()));
         
         // Assert sync pulse on the requested pin for scope triggering
@@ -323,7 +361,6 @@ void HV507::scan() {
 
 void HV507::loadShiftRegister(PinMask shift_reg) {
     SPI::transferBlocking((uint8_t *)&shift_reg, 0, N_BYTES);
-
 }
 
 void HV507::latchShiftRegister() {
