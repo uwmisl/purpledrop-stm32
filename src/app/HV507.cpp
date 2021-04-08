@@ -303,8 +303,11 @@ void HV507::scan() {
             SPI::transferBlocking(0);
         }
     }
-    SPI::transferBlocking(0x80);
-
+    if(AppConfig::InvertedOpto()) {
+        SPI::transferBlocking(0x7f);
+    } else {
+        SPI::transferBlocking(0x80);
+    }
     // Convert SCK and MOSI pins from alternate function to outputs
     MOSI::setOutput(0);
     SCK::setOutput(0);
