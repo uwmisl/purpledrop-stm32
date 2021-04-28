@@ -5,12 +5,24 @@
 #include "Events.hpp"
 #include "PeriodicPollingTimer.hpp"
 
-static const float VSCALE = (3.3 / 4096.) * 603.3 / 3.3;
+
+// Resistor divider ratio of ADC measurement voltage to high voltage rail
+static const float VDIVIDER = 6.65 / (412.0*3);
+// Scale from ADC counts to HIGH voltage
+static const float VSCALE = (3.3 / 4096.) / VDIVIDER;
 static const uint32_t N_OVERSAMPLE = 12;
 static const float FILTER = 0.25;
+static const float K_INTEGRATOR = 0.3;
+static const float MAX_INTEGRATOR = 250.0;
+static const float SLEW_INTEGRATOR = 3;
+// Empirically determined linear relationship between DAC counts and output
+// voltage under nominal load
+static const float TARGET_SCALE = 5.7;
+static const float TARGET_OFFSET = 1325;
+
 
 struct HvRegulator {
-    HvRegulator() : mTimer(CONTROL_PERIOD_US) {}
+    HvRegulator() : mTimer(CONTROL_PERIOD_US), mIntegral(0.0) {}
 
     void init(EventEx::EventBroker *broker, Analog *analog) {
         mBroker = broker;
@@ -18,6 +30,7 @@ struct HvRegulator {
         modm::platform::Dac::initialize();
         modm::platform::Dac::enableChannel(modm::platform::Dac::Channel::Channel1);
         modm::platform::Dac::connect<GpioA4::Out1>();
+        modm::platform::Dac::enableOutputBuffer(modm::platform::Dac::Channel::Channel1, true);
     }
 
     void poll() {
@@ -32,15 +45,22 @@ struct HvRegulator {
             mVoltageMeasure = mVoltageMeasure * (1 - FILTER) + vcal * FILTER;
             if(AppConfig::HvControlEnabled()) {
                 float target = AppConfig::HvControlTarget();
-                // There's a 6% scale error. I don't know if this is consistent across boards,
-                // and I'm not sure where it comes from. For now I'm just kludging this here. 
-                const float SCALE_ADJ = 1./1.06;
-                output = target * SCALE_ADJ / VSCALE  + 1.22 * 4096./3.3;
-                // TODO: This is the expected value, but it actually depends on supply load, 
-                // resistors, op-amp offsets, etc. We can get better accuracy by putting some
-                // feedback around the measured voltage, but this needs to be done carefully 
-                // to avoid voltage overshoot. The HV output shouldn't ever go signifcantly 
-                // higher than its setpoint.
+                // The differential feedback measurement is offset by reference
+                // diode for conversion to single ended; this is the diode voltage.
+                const float ANALOG_OFFSET = 1.225;
+                float delta = K_INTEGRATOR * (vcal - target);
+                if(delta > SLEW_INTEGRATOR) {
+                    delta = SLEW_INTEGRATOR;
+                } else if (delta < -SLEW_INTEGRATOR) {
+                    delta = -SLEW_INTEGRATOR;
+                }
+                mIntegral += delta;
+                if(mIntegral > MAX_INTEGRATOR) {
+                    mIntegral = MAX_INTEGRATOR;
+                } else if (mIntegral < -MAX_INTEGRATOR) {
+                    mIntegral = -MAX_INTEGRATOR;
+                }
+                output = (target * TARGET_SCALE + TARGET_OFFSET) - mIntegral;
             } else {
                 output = AppConfig::HvControlOutput();
             }
@@ -56,6 +76,7 @@ private:
     Analog *mAnalog;
     PeriodicPollingTimer mTimer;
     float mVoltageMeasure;
+    float mIntegral;
 
     static const uint32_t CONTROL_PERIOD_US = 10000;
 };
