@@ -1,5 +1,23 @@
 # PurpleDrop STM32 Software Releases
 
+## 0.4.1 (2021-04-28)
+
+- Adds feedback control mode for droplet splitting
+- Adds support for up to 5 capacitance scan groups for high rate measurement of
+arbitrary sets of electrodes.
+- Adds support for two drive groups and varying PWM duty cycle for each.
+- Adds support for inverting opto-isolators as AppConfig option.
+  - Allows accomodating alternative parts when the designed part is out of stock.
+- Adds integrator feedback to high voltage control.
+  - Previously, it was a constant output calibrated for a particular load. This
+  allows for accurate voltage control under different loads, important now because
+  new board revision has different resistor values in the voltage sense divider,
+  which substantially alters the load on the HV supply.
+
+NOTE: This release alters the structure of several messages and so breaks
+USB API compatibility in order to support drive groups and scan groups. The
+purpledrop-driver software must be updated along with this update.
+
 ## 0.3.1 (2020-03-11)
 
 - Add controllable GPIO outputs
