@@ -63,12 +63,12 @@ void FeedbackControl::HandleCapGroups(events::CapGroups &event) {
         if(neg_output > 255) {
             neg_output = 255;
         }
-        pos_output = neg_output - feedback;
+        pos_output = neg_output + feedback;
         if(pos_output < 0) {
             pos_output = 0;
         }
     }
-    
+
     events::SetDutyCycle set_event;
     set_event.updateA = true;
     set_event.updateB = true;
