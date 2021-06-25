@@ -13,7 +13,7 @@ static const float VSCALE = (3.3 / 4096.) / VDIVIDER;
 static const uint32_t N_OVERSAMPLE = 12;
 static const float FILTER = 0.25;
 static const float K_INTEGRATOR = 0.3;
-static const float MAX_INTEGRATOR = 250.0;
+static const float MAX_INTEGRATOR = 500.0;
 static const float SLEW_INTEGRATOR = 3;
 // Empirically determined linear relationship between DAC counts and output
 // voltage under nominal load
@@ -45,9 +45,6 @@ struct HvRegulator {
             mVoltageMeasure = mVoltageMeasure * (1 - FILTER) + vcal * FILTER;
             if(AppConfig::HvControlEnabled()) {
                 float target = AppConfig::HvControlTarget();
-                // The differential feedback measurement is offset by reference
-                // diode for conversion to single ended; this is the diode voltage.
-                const float ANALOG_OFFSET = 1.225;
                 float delta = K_INTEGRATOR * (vcal - target);
                 if(delta > SLEW_INTEGRATOR) {
                     delta = SLEW_INTEGRATOR;
