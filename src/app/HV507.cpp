@@ -52,6 +52,8 @@ void HV507::init(EventEx::EventBroker *broker, Analog *analog) {
     mBroker->registerHandler(&mCapOffsetCalibrationRequestHandler);
     mSetDutyCycleHandler.setFunction([this](auto &e){ handleSetDutyCycle(e); });
     mBroker->registerHandler(&mSetDutyCycleHandler);
+    mUpdateElectrodeCalibrationHandler.setFunction([this](auto &e){ handleUpdateElectrodeCalibration(e); });
+    mBroker->registerHandler(&mUpdateElectrodeCalibrationHandler);
 
     // Kick off asynchronous drive
     SchedulingTimer::init();
@@ -84,11 +86,12 @@ void HV507::poll() {
         if(e == AsyncEvent_e::SendActiveCap) {
             // Send active capacitance message
             auto &sample = mLastActiveSample;
-            events::CapActive event(sample.sample0 + mOffsetCalibration, sample.sample1);
+            events::CapActive event(sample.sample0 + mOffsetCalibration + mActiveElectrodeOffset, sample.sample1);
             mBroker->publish(event);
         } else if(e == AsyncEvent_e::SendGroupCap) {
             events::CapGroups event;
             event.measurements = mGroupScanData;
+            event.scanGroups = mScanGroups;
             mBroker->publish(event);
         } else if(e == AsyncEvent_e::SendScanCap) {
             events::CapScan event;
@@ -134,11 +137,9 @@ void HV507::groupScan() {
             // Use 10,000 + group number to trigger on a particular group measurement
             bool fire_sync_pulse = AppConfig::ScanSyncPin() == (int32_t)(10000 + group);
             SampleData sample = sampleCapacitance(sample_delay, fire_sync_pulse);
-            if(mFsm.count < AppConfig::N_CAP_GROUPS) {
-                mGroupScanData[group] = sample.sample1 - sample.sample0 - calibration_offset;
-                if(mGroupScanData[group] > 32767) {
-                    mGroupScanData[group] = 0;
-                }
+            mGroupScanData[group] = sample.sample1 - sample.sample0 - calibration_offset - mGroupElectrodeOffsets[group];
+            if(mGroupScanData[group] > 32767) {
+                mGroupScanData[group] = 0;
             }
         } else {
             mGroupScanData[group] = 0;
@@ -289,7 +290,6 @@ void HV507::callback() {
             SchedulingTimer::schedule(1);
         }
     }
-
 }
 
 void HV507::scan() {
@@ -318,14 +318,17 @@ void HV507::scan() {
     modm::delay(std::chrono::nanoseconds(AppConfig::ScanStartDelay()));
 
     for(int32_t i=N_PINS-1; i >= 0; i--) {
+        bool lowGain;
         if(getGain(i) == GainSetting::LOW) {
             sample_delay = AppConfig::SampleDelayLowGain();
             offset_calibration = mOffsetCalibrationLowGain;
             GAIN_SEL::setOutput(true);
+            lowGain = true;
         } else {
             sample_delay = AppConfig::SampleDelay();
             offset_calibration = mOffsetCalibration;
             GAIN_SEL::setOutput(false);
+            lowGain = false;
         }
         // Skip the common top plate electrode
         if(i == (int)AppConfig::TopPlatePin()) {
@@ -342,8 +345,8 @@ void HV507::scan() {
         // Assert sync pulse on the requested pin for scope triggering
         bool fire_sync_pulse = i == AppConfig::ScanSyncPin();
         SampleData sample = sampleCapacitance(sample_delay, fire_sync_pulse);
-        mScanData[i] = sample.sample1 - sample.sample0 - offset_calibration;
-        // It can go negative an overflow; clip it to zero when that happens
+        mScanData[i] = sample.sample1 - sample.sample0 - offset_calibration - electrodeOffset(i, lowGain);
+        // It can go negative on overflow; clip it to zero when that happens
         if(mScanData[i] > 32767) {
             mScanData[i] = 0;
         }
@@ -381,12 +384,14 @@ void HV507::calibrateOffset() {
     a different sample delay is used. The offset is essentially proportional
     to the sample delay, so one could probably be calculated from the other,
     but it's also pretty quick to just measure both */
+    GAIN_SEL::setOutput(false);
     for(uint32_t i=0; i<nSample; i++) {
         auto sample = sampleCapacitance(AppConfig::SampleDelay(), false);
         accum += sample.sample1 - sample.sample0;
     }
     mOffsetCalibration = accum / nSample;
 
+    GAIN_SEL::setOutput(true);
     accum = 0;
     for(uint32_t i=0; i<nSample; i++) {
         auto sample = sampleCapacitance(AppConfig::SampleDelayLowGain(), false);
@@ -395,7 +400,18 @@ void HV507::calibrateOffset() {
     mOffsetCalibrationLowGain = accum / nSample;
 }
 
+uint16_t medianof3(uint16_t a, uint16_t b, uint16_t c) {
+    if(a < b && a < c) {
+        return std::min(b, c);
+    } else if(b < a && b < c) {
+        return std::min(a, c);
+    } else {
+        return std::min(a, b);
+    }
+}
+
 typename HV507::SampleData HV507::sampleCapacitance(uint32_t sample_delay_ns, bool fire_sync_pulse) {
+    static const uint32_t N_SAMPLE = 4;
     SampleData ret;
 
     mAnalog->setupIntVout();
@@ -412,13 +428,21 @@ typename HV507::SampleData HV507::sampleCapacitance(uint32_t sample_delay_ns, bo
         }
         // Take an initial reading of integrator output -- the integrator does not
         // reset fully to 0V
-        ret.sample0 = mAnalog->readIntVout();
+        uint16_t accum = 0;
+        for(uint32_t i=0; i<N_SAMPLE; i++) {
+            accum += mAnalog->readIntVout();
+        }
+        ret.sample0 = accum/N_SAMPLE;
         // Release the blanking signal, and allow time for active electrodes to
         // charge and current to settle back to zero
         BL::setOutput(true);
         modm::delay(std::chrono::nanoseconds(sample_delay_ns));
         // Read voltage integrator
-        ret.sample1 = mAnalog->readIntVout();
+        accum = 0;
+        for(uint32_t i=0; i<N_SAMPLE; i++) {
+            accum += mAnalog->readIntVout();
+        }
+        ret.sample1 = accum/N_SAMPLE;
         SCAN_SYNC::setOutput(false);
         INT_RESET::setOutput(true);
     }
@@ -441,8 +465,28 @@ void HV507::handleSetDutyCycle(events::SetDutyCycle &e) {
 void HV507::handleSetElectrodes(events::SetElectrodes &e) {
     if(e.groupID >= 100) {
         uint8_t scanGroup = e.groupID - 100;
+        if(scanGroup >= AppConfig::N_CAP_GROUPS) {
+            return;
+        }
+        // Compute the total electrode compenation offset for the scan group
+        mGroupElectrodeOffsets[scanGroup] = 0;
+        bool lowGain = e.setting & 1;
+        for(uint32_t i=0; i<N_PINS; i++) {
+            if(mScanGroups.isPinActive(scanGroup, i)) {
+                mGroupElectrodeOffsets[scanGroup] += electrodeOffset(i, lowGain);
+            }
+        }
         mScanGroups.setGroup(scanGroup, e.setting, e.values);
     } else if(e.groupID == 0) {
+        mActiveElectrodeOffset = 0;
+        // Compute the total electrode compensation offset for the active measurement
+        for(uint32_t i=0; i<N_PINS; i++) {
+            uint8_t byteidx = i/8;
+            uint8_t bit = i%8;
+            if(e.values[byteidx] & (1<<bit)) {
+                mActiveElectrodeOffset += electrodeOffset(i, false);
+            }
+        }
         for(uint32_t i=0; i<N_BYTES; i++) {
             mShiftRegA[i] = e.values[i];
         }
@@ -468,6 +512,14 @@ void HV507::handleSetGain(events::SetGain &e) {
             mLowGainFlags[offset] &= ~(1<<bit);
         }
     }
+}
+
+void HV507::handleUpdateElectrodeCalibration(events::UpdateElectrodeCalibration &e) {
+    if(e.offset + e.length > sizeof(mElectrodeCalibration)) {
+        // Refuse to overrun the allocated buffer
+        return;
+    }
+    memcpy((uint8_t*)&mElectrodeCalibration + e.offset, e.data, e.length);
 }
 
 HV507::GainSetting HV507::getGain(uint32_t chan) {

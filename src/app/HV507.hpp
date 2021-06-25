@@ -59,6 +59,11 @@ public:
         uint16_t sample1; // final value
     };
 
+    struct ElectrodeCalibrationData {
+        float voltage; // Voltage at which measurement is taken
+        uint16_t offsets[N_PINS];
+    };
+
     HV507() {
         // Save singleton reference
         mSingleton = this;
@@ -100,7 +105,6 @@ private:
     struct FSM {
         TopState_e top = TopState_e::DriveN;
         DriveState_e drive = DriveState_e::Start;
-        uint32_t count = 0;
     };
 
     enum AsyncEvent_e : uint8_t {
@@ -140,16 +144,28 @@ private:
     uint8_t mCalibrateStep;
     std::array<uint16_t, AppConfig::N_CAP_GROUPS> mGroupScanData;
     SampleData mLastActiveSample;
+    ElectrodeCalibrationData mElectrodeCalibration;
+    uint16_t mActiveElectrodeOffset;
+    std::array<uint16_t, AppConfig::N_CAP_GROUPS> mGroupElectrodeOffsets;
     EventEx::EventHandlerFunction<events::SetElectrodes> mSetElectrodesHandler;
     EventEx::EventHandlerFunction<events::SetGain> mSetGainHandler;
     EventEx::EventHandlerFunction<events::CapOffsetCalibrationRequest> mCapOffsetCalibrationRequestHandler;
     EventEx::EventHandlerFunction<events::SetDutyCycle> mSetDutyCycleHandler;
+    EventEx::EventHandlerFunction<events::UpdateElectrodeCalibration> mUpdateElectrodeCalibrationHandler;
 
     EventEx::EventBroker *mBroker;
     Analog *mAnalog;
 
     // Pointer to the singleton class instance for static methods
     static HV507 *mSingleton;
+
+    inline uint16_t electrodeOffset(uint8_t pin, bool low_gain=false) {
+        float x = mElectrodeCalibration.offsets[pin] * AppConfig::HvControlTarget() / mElectrodeCalibration.voltage;
+        if(low_gain) {
+            x *= AppConfig::LowGainR() / AppConfig::HighGainR();
+        }
+        return x;
+    }
 
     void callback();
     /* Perform capacitance scan of all electrodes*/
@@ -170,4 +186,5 @@ private:
     void handleSetDutyCycle(events::SetDutyCycle &e);
     void handleSetElectrodes(events::SetElectrodes &e);
     void handleSetGain(events::SetGain &e);
+    void handleUpdateElectrodeCalibration(events::UpdateElectrodeCalibration &e);
 };

@@ -260,7 +260,8 @@ struct SetPwmMsg {
 /** Used to request and return a string of bytes from the purpledrop
  */
 enum DataBlobId : uint16_t {
-    SoftwareVersionBlob = 0
+    SoftwareVersionBlob = 0,
+    OffsetCalibration = 1,
 };
 
 struct DataBlobMsg {
