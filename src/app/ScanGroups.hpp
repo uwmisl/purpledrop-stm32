@@ -60,6 +60,12 @@ public:
         }
     }
 
+    inline bool isPinActive(uint8_t group, uint8_t pin) {
+        uint8_t byteidx = pin / 8;
+        uint8_t bit = pin % 8;
+        return mGroupMasks[group][byteidx] & (1<<bit);
+    }
+
 private:
     PinMask mGroupMasks[MAX_GROUPS];
     uint8_t mGroupSettings[MAX_GROUPS];

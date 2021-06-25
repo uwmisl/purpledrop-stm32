@@ -72,5 +72,5 @@ private:
 
     void PeriodicSend();
     void SendBlob(uint8_t blob_id, const uint8_t *buf, uint32_t size);
-
+    void SendAck(uint8_t acked_id);
 };

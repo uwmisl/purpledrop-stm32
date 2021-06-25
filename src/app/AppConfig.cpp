@@ -20,6 +20,8 @@ ConfigOptionDescriptor AppConfig::optionDescriptors[] = {
     INTOPT(IntegratorResetDelayId, 1000, "Integrator reset delay", "ns; time between reset release and first sample"),
     BOOLOPT(AugmentTopPlateLowSideId, 0, "Enable Top Plate Augment FET", "Enable extra FET to drive top plate to GND"),
     INTOPT(TopPlatePinId, 97, "Top Plate Pin", "Pin number of HV507 output driving top plate"),
+    FLTOPT(LowGainRId, 33.0, "R Sense Low Gain", "Sense resistance for low gain capacitance measurement"),
+    FLTOPT(HighGainRId, 220.0, "R Sense High Gain", "Sense resistance for high gain capacitance measurement"),
     BOOLOPT(InvertedOptoId, 0, "Inverting Optoisolators", "Invert all opto-isolator IOs to support alternative parts"),
     FLTOPT(FeedbackGainPId, 0.0, "Feedback KP", "Proportional gain for feedback drop control"),
     FLTOPT(FeedbackGainIId, 0.0, "Feedback KI", "Integral gain for feedback drop control"),

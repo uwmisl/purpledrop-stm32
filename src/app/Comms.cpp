@@ -54,16 +54,13 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
         case CalibrateCommandMsg::ID:
             {
                 CalibrateCommandMsg msg;
-                CommandAckMsg ack;
                 Serializer ser(mTxQueue);
                 msg.fill(buf, len);
                 if(msg.command == CalibrateCommandMsg::CommandType::CapacitanceOffset) {
                     events::CapOffsetCalibrationRequest event;
                     mBroker->publish(event);
                 }
-                ack.acked_id = CalibrateCommandMsg::ID;
-                ack.serialize(ser);
-                mFlush();
+                SendAck(CalibrateCommandMsg::ID);
             }
             break;
         case DataBlobMsg::ID:
@@ -72,6 +69,13 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
                 msg.fill(buf, len);
                 if(msg.blob_id == DataBlobId::SoftwareVersionBlob) {
                     SendBlob(DataBlobId::SoftwareVersionBlob, (uint8_t*)VERSION_STRING, strlen(VERSION_STRING));
+                } else if(msg.blob_id == DataBlobId::OffsetCalibration) {
+                    events::UpdateElectrodeCalibration event;
+                    event.offset = msg.chunk_index;
+                    event.length = msg.payload_size;
+                    event.data = msg.data;
+                    mBroker->publish(event);
+                    SendAck(DataBlobMsg::ID);
                 }
             }
             break;
@@ -151,7 +155,6 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
         case SetGainMsg::ID:
             {
                 SetGainMsg msg;
-                CommandAckMsg ack;
                 events::SetGain event;
                 Serializer ser(mTxQueue);
                 msg.fill(buf, len);
@@ -159,24 +162,19 @@ void Comms::ProcessMessage(uint8_t *buf, uint16_t len) {
                     event.set_channel(i, msg.get_channel(i));
                 }
                 mBroker->publish(event);
-                ack.acked_id = SetGainMsg::ID;
-                ack.serialize(ser);
-                mFlush();
+                SendAck(SetGainMsg::ID);
             }
             break;
         case SetPwmMsg::ID:
             {
                 SetPwmMsg msg;
                 events::SetPwm event;
-                CommandAckMsg ack;
                 Serializer ser(mTxQueue);
                 msg.fill(buf, len);
                 event.channel = msg.channel;
                 event.duty_cycle = msg.duty_cycle;
                 mBroker->publish(event);
-                ack.acked_id = SetPwmMsg::ID;
-                ack.serialize(ser);
-                mFlush();
+                SendAck(SetPwmMsg::ID);
             }
             break;
     }
@@ -311,5 +309,13 @@ void Comms::SendBlob(uint8_t blob_id, const uint8_t *buf, uint32_t size) {
     msg.payload_size = size;
     msg.data = buf;
     msg.serialize(ser);
+    mFlush();
+}
+
+void Comms::SendAck(uint8_t acked_id) {
+    CommandAckMsg ack;
+    Serializer ser(mTxQueue);
+    ack.acked_id = acked_id;
+    ack.serialize(ser);
     mFlush();
 }

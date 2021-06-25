@@ -19,6 +19,8 @@ enum ConfigOptionIds : uint8_t {
     AugmentTopPlateLowSideId = 26,
     SampleDelayLowGainId = 27,
     TopPlatePinId = 30,
+    LowGainRId = 31,
+    HighGainRId = 32,
     InvertedOptoId = 75,
     FeedbackGainPId = 100,
     FeedbackGainIId = 101,
@@ -59,6 +61,14 @@ struct AppConfig {
     static bool AugmentTopPlateLowSide() { return (bool)optionValues[AugmentTopPlateLowSideId].i32; }
 
     static int32_t TopPlatePin() { return optionValues[TopPlatePinId].i32; }
+
+    // Sense resistor used for low gain capacitance sense setting
+    static float LowGainR() { return optionValues[LowGainRId].f32; }
+    // Sense resistor used for high gain capacitance sense setting
+    static float HighGainR() { return optionValues[HighGainRId].f32; }
+    // Gain of integrator after the sense resistor, with units of V per V-sec.
+    // Used to convert ADC voltage to real capacitance units for convenience
+    static float CapAmplifierGain() {  return 2.0*22.36*25000.0; }
 
     static bool InvertedOpto() { return optionValues[InvertedOptoId].i32 != 0; }
     static float FeedbackKp() { return optionValues[FeedbackGainPId].f32; }

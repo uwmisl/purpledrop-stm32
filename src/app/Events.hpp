@@ -3,6 +3,7 @@
 #include "AppConfig.hpp"
 
 #include "EventEx.hpp"
+#include "ScanGroups.hpp"
 
 using namespace EventEx;
 
@@ -27,6 +28,7 @@ struct CapScan : public Event {
 
 struct CapGroups : public Event {
     std::array<uint16_t, AppConfig::N_CAP_GROUPS> measurements;
+    ScanGroups<AppConfig::N_PINS, AppConfig::N_CAP_GROUPS> scanGroups;
 };
 
 struct ElectrodesUpdated : public Event {};
@@ -86,6 +88,11 @@ struct FeedbackCommand : public Event {
     uint8_t baseline;
 };
 
+struct HvRegulatorUpdate : public Event {
+    float voltage;
+    uint16_t vTargetOut;
+};
+
 struct SetParameter : public Event {
     uint32_t paramIdx;
     ConfigOptionValue paramValue;
@@ -103,10 +110,12 @@ struct TemperatureMeasurement : public Event {
     uint16_t measurements[AppConfig::N_TEMP_SENSOR];
 };
 
-struct HvRegulatorUpdate : public Event {
-    float voltage;
-    uint16_t vTargetOut;
+// Partial update of the electrode calibration data
+// Calibrations are sent via DataBlob messages, in chunks.
+struct UpdateElectrodeCalibration : public Event {
+    uint16_t offset; // Offset of first byte to update
+    uint16_t length; // Number of bytes to copy
+    const uint8_t *data; // Source data to copy
 };
-
 
 } //namespace events
