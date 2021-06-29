@@ -17,7 +17,7 @@ void FeedbackControl::init(EventBroker *event_broker) {
 }
 
 void FeedbackControl::HandleCapGroups(events::CapGroups &event) {
-    int32_t x = 0.0;
+    float x = 0.0;
     float kp = AppConfig::FeedbackKp();
     float ki = AppConfig::FeedbackKi();
     float kd = AppConfig::FeedbackKd();
@@ -29,11 +29,18 @@ void FeedbackControl::HandleCapGroups(events::CapGroups &event) {
     // Always Sum all of the positive feedback inputs
     // In differential mode, also sum the negative feedback inputs
     for(uint32_t ch=0; ch<event.measurements.size(); ch++) {
+        // Compute scale value to convert raw counts to pF
+        float gain = AppConfig::CapAmplifierGain() * AppConfig::HvControlTarget() * 1e12 * 4096 / 3.3;
+        if(event.scanGroups.getGroupSetting(ch) & 1) {
+            gain *= AppConfig::LowGainR();
+        } else {
+            gain *= AppConfig::HighGainR();
+        }
         if(mCmd.measureGroupsPMask & (1<<ch)) {
-            x += event.measurements[ch];
+            x += event.measurements[ch] / gain;
         }
         if(mCmd.mode == Differential && mCmd.measureGroupsNMask & (1<<ch)) {
-            x -= event.measurements[ch];
+            x -= event.measurements[ch] / gain;
         }
     }
 
