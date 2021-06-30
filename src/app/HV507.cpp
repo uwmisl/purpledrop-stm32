@@ -86,7 +86,11 @@ void HV507::poll() {
         if(e == AsyncEvent_e::SendActiveCap) {
             // Send active capacitance message
             auto &sample = mLastActiveSample;
-            events::CapActive event(sample.sample0 + mOffsetCalibration + mActiveElectrodeOffset, sample.sample1);
+            events::CapActive event(
+                sample.sample0 + mOffsetCalibration + mActiveElectrodeOffset,
+                sample.sample1,
+                AppConfig::ActiveCapLowGain() ? 1 : 0
+            );
             mBroker->publish(event);
         } else if(e == AsyncEvent_e::SendGroupCap) {
             events::CapGroups event;
@@ -178,8 +182,11 @@ bool HV507::driveFsm() {
         if(mFsm.top == TopState_e::DriveN) {
             unblank();
         } else {
-            // Active capacitance is always done at high gain
-            GAIN_SEL::setOutput(false);
+            if(AppConfig::ActiveCapLowGain()) {
+                GAIN_SEL::setOutput(true);
+            } else {
+                GAIN_SEL::setOutput(false);
+            }
             // Scan sync pin -1 causes sync pulse on active capacitance measurement
             bool fire_sync_pulse = AppConfig::ScanSyncPin() == -1;
             mLastActiveSample = sampleCapacitance(AppConfig::SampleDelay(), fire_sync_pulse);
@@ -484,7 +491,7 @@ void HV507::handleSetElectrodes(events::SetElectrodes &e) {
             uint8_t byteidx = i/8;
             uint8_t bit = i%8;
             if(e.values[byteidx] & (1<<bit)) {
-                mActiveElectrodeOffset += electrodeOffset(i, false);
+                mActiveElectrodeOffset += electrodeOffset(i, AppConfig::ActiveCapLowGain());
             }
         }
         for(uint32_t i=0; i<N_BYTES; i++) {
