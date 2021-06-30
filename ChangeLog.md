@@ -1,5 +1,16 @@
 # PurpleDrop STM32 Software Releases
 
+## 0.5.1 (2021-06-30)
+
+- Support low gain for active capacitance measurements.
+  - This includes adding a flag for gain setting to active capacitance
+    message, breaking messaging compatibility
+- Increase HV regulator integrator limit
+  - On some boards, this limit prevents the controller from reaching target at
+    higher voltages
+- Add per-electrode capacitance offset calibration
+- Feedback controller uses real capacitance units (pF) instead of count
+
 ## 0.4.1 (2021-04-28)
 
 - Adds feedback control mode for droplet splitting
