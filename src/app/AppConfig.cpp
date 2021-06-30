@@ -16,6 +16,7 @@ ConfigOptionDescriptor AppConfig::optionDescriptors[] = {
     INTOPT(ScanBlankDelayId, 4000, "Scan Blank Delay", "ns; delay after asserting blank between each scan measurement"),
     INTOPT(SampleDelayId, 10000, "Sample Delay (high gain)", "ns; Duration of current integration"),
     INTOPT(SampleDelayLowGainId, 40000, "Sample Delay (low gain)", "ns; Duration of current integration"),
+    BOOLOPT(ActiveCapLowGainId, 0, "Active Cap Uses Low Gain", "Use low gain setting to measure active capacitance"),
     INTOPT(BlankingDelayId, 14000, "Active Blank Delay", "ns; delay between blank and integrator reset for active measurement"),
     INTOPT(IntegratorResetDelayId, 1000, "Integrator reset delay", "ns; time between reset release and first sample"),
     BOOLOPT(AugmentTopPlateLowSideId, 0, "Enable Top Plate Augment FET", "Enable extra FET to drive top plate to GND"),

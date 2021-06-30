@@ -12,12 +12,16 @@ using namespace EventEx;
 namespace events {
 
 struct CapActive : public Event {
-    CapActive() : CapActive(0, 0) {}
+    CapActive() : CapActive(0, 0, 0) {}
 
-    CapActive(uint16_t _baseline, uint16_t _measurement) : baseline(_baseline), measurement(_measurement) {}
+    CapActive(uint16_t _baseline, uint16_t _measurement, uint8_t _settings) :
+        baseline(_baseline),
+        measurement(_measurement),
+        settings(_settings) {}
 
     uint16_t baseline; // Initial zero level
     uint16_t measurement; // Final voltage value
+    uint8_t settings; // Metadata about the sample; bit 0 indicates low gain.
 };
 
 struct CapOffsetCalibrationRequest : public Event {}; 

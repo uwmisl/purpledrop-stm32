@@ -18,6 +18,7 @@ enum ConfigOptionIds : uint8_t {
     IntegratorResetDelayId = 25,
     AugmentTopPlateLowSideId = 26,
     SampleDelayLowGainId = 27,
+    ActiveCapLowGainId = 28,
     TopPlatePinId = 30,
     LowGainRId = 31,
     HighGainRId = 32,
@@ -25,8 +26,6 @@ enum ConfigOptionIds : uint8_t {
     FeedbackGainPId = 100,
     FeedbackGainIId = 101,
     FeedbackGainDId = 102
-
-
 };
 
 union ConfigOptionValue {
@@ -59,6 +58,7 @@ struct AppConfig {
     static int32_t BlankingDelay() { return optionValues[BlankingDelayId].i32; }
     static int32_t IntegratorResetDelay() { return optionValues[IntegratorResetDelayId].i32; }
     static bool AugmentTopPlateLowSide() { return (bool)optionValues[AugmentTopPlateLowSideId].i32; }
+    static bool ActiveCapLowGain() { return (bool)optionValues[ActiveCapLowGainId].i32; }
 
     static int32_t TopPlatePin() { return optionValues[TopPlatePinId].i32; }
 

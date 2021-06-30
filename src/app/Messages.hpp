@@ -123,11 +123,13 @@ struct ActiveCapacitanceMsg {
 
     uint16_t baseline;
     uint16_t measurement;
+    uint8_t settings;
 
     void serialize(Serializer &ser) {
         ser.push(ID);
         ser.push(baseline);
         ser.push(measurement);
+        ser.push(settings);
         ser.finish();
     }
 };

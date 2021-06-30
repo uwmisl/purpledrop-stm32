@@ -185,6 +185,7 @@ void Comms::HandleCapActive(CapActive &e) {
     Serializer ser(mTxQueue);
     msg.baseline = e.baseline;
     msg.measurement = e.measurement;
+    msg.settings = e.settings;
     msg.serialize(ser);
     mFlush();
 }
