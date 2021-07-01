@@ -23,6 +23,7 @@ void FeedbackControl::HandleCapGroups(events::CapGroups &event) {
     float kd = AppConfig::FeedbackKd();
 
     if(mCmd.mode == Disabled) {
+        mIntegral = 0;
         return;
     }
 
@@ -30,7 +31,7 @@ void FeedbackControl::HandleCapGroups(events::CapGroups &event) {
     // In differential mode, also sum the negative feedback inputs
     for(uint32_t ch=0; ch<event.measurements.size(); ch++) {
         // Compute scale value to convert raw counts to pF
-        float gain = AppConfig::CapAmplifierGain() * AppConfig::HvControlTarget() * 1e12 * 4096 / 3.3;
+        float gain = AppConfig::CapAmplifierGain() * AppConfig::HvControlTarget() * 1e-12 * 4096 / 3.3;
         if(event.scanGroups.getGroupSetting(ch) & 1) {
             gain *= AppConfig::LowGainR();
         } else {
