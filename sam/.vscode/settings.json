@@ -1,0 +1,9 @@
+{
+    "testMate.cpp.discovery.strictPattern": false,
+    "testMate.cpp.test.executables": "test/PurpleDropTest",
+    "files.associations": {
+        "array": "cpp",
+        "*.bak": "c",
+        "tusb_option.h": "c"
+    }
+}

@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+
+def init(repo):
+    repo.name = "purpledrop"
+    repo.description = "PurpleDrop generated code"
+    #repo.format_description = "PurpleDrop generated code"
+    #repo.format_short_description = "PurpleDrop generated code"
+    #repo.add_ignore_patterns("*/*.lb", "*/board.xml")
+
+def prepare(repo, options):
+    repo.add_modules_recursive(".", modulefile="*.lb")
+
+def build(env):
+    env.collect(":build:path.include", "templated")

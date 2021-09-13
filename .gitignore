@@ -2,8 +2,9 @@
 .#*
 *.a
 .gdb_history
-build/
-/modm/
+build
+modm
+sam/templated 
 
 # modm generated
 project.xml.log
@@ -14,7 +15,7 @@ test/PurpleDropTest
 test/Makefile
 CMakeFiles
 CMakeCache.txt
-src/version.cpp
+lib/src/version.cpp
 __pycache__
 *.dfu
 
@@ -25,6 +26,7 @@ __pycache__
 !.vscode/launch.json
 !.vscode/tasks.json
 .mypy_cache
+*.swp
 
 # debugging trace
 itm.txt

@@ -1,5 +1,11 @@
 # PurpleDrop STM32 Software Releases
 
+## 0.6.1 (2022-02-15)
+
+- Adds support for ATSAMG55
+- Adds DFU bootloader for ATSAMG55
+- Adds auto-sample-delay mode for capacitance sensing
+
 ## 0.5.1 (2021-06-30)
 
 - Support low gain for active capacitance measurements.

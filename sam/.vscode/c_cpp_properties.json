@@ -1,0 +1,23 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "/opt/gcc-arm-none-eabi-10-2020-q4-major/arm-none-eabi/include/c++/10.2.1",
+                "/opt/gcc-arm-none-eabi-10-2020-q4-major/arm-none-eabi/include/c++/10.2.1/arm-none-eabi",
+                "${workspaceFolder}/modm/src",
+                "${workspaceFolder}/modm/ext/cmsis/device",
+                "${workspaceFolder}/modm/ext/cmsis/core",
+                "${workspaceFolder}/modm/ext/tinyusb",
+                "${workspaceFolder}/templated"
+            ],
+            "defines": [],
+            "compilerPath": "/opt/gcc-arm-none-eabi-10-2020-q4-major/bin/arm-none-eabi-gcc",
+            "cStandard": "gnu17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "linux-gcc-arm",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        }
+    ],
+    "version": 4
+}
