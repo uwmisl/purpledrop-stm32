@@ -1,0 +1,47 @@
+<library>
+  <repositories>
+    <repository>
+      <path>../ext/modm/repo.lb</path>
+    </repository>
+    <repository>
+      <path>../templated/repo.lb</path>
+    </repository>
+  </repositories>
+  <options>
+    <option name="modm:target">samg55j19a-au</option>
+    <option name="modm:build:project.name">purpledrop-sam</option>
+    <option name="modm:build:cmake:include_cmakelists">false</option>
+    <option name="modm:build:make:include_makefile">false</option>
+    <option name="modm:build:openocd.cfg">openocd.cfg</option>
+    <option name="modm:platform:cortex-m:linkerscript.override">memory.ld</option>
+    <option name="modm:stdc++:rtti">true</option>
+    <option name="modm:tinyusb:config">device.cdc, device.dfu</option>
+    <option name="modm:platform:uart:7:buffer.tx">512</option>
+  </options>
+  <modules>
+    <module>modm:tinyusb</module>
+    <module>modm:architecture:assert</module>
+    <module>modm:architecture:atomic</module>
+    <module>modm:architecture:delay</module>
+    <module>modm:build:cmake</module>
+    <module>modm:build:scons</module>
+    <module>modm:docs</module>
+    <module>modm:driver:pca9685</module>
+    <module>modm:platform:adc</module>
+    <module>modm:platform:clockgen</module>
+    <module>modm:platform:core</module>
+    <module>modm:platform:heap</module>
+    <module>modm:platform:spi:2</module>
+    <module>modm:platform:spi:4</module>
+    <module>modm:platform:timer:0</module>
+    <module>modm:platform:timer:3</module>
+    <module>modm:platform:timer:4</module>
+    <module>modm:platform:gpio</module>
+    <module>modm:platform:usb</module>
+    <module>modm:platform:uart:7</module>
+    <module>modm:processing:timer</module>
+
+    <module>purpledrop:i2c:1</module>
+    <module>purpledrop:i2c:6</module>
+  </modules>
+</library>

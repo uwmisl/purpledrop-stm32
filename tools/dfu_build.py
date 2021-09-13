@@ -6,7 +6,7 @@ import sys, struct, zlib, os
 #from optparse import OptionParser
 
 DEFAULT_DEVICE = "0x0483:0xdf11"
-
+DEFAULT_DFU_VERSION = 0x011a
 
 def named(tuple, names):
     return dict(zip(names.split(), tuple))
@@ -70,7 +70,7 @@ def parse(file, dump_images=False):
         print("PARSE ERROR")
 
 
-def build(file, targets, device=DEFAULT_DEVICE):
+def build(file, targets, device=DEFAULT_DEVICE, dfu_version=DEFAULT_DFU_VERSION):
     data = b""
     for t, target in enumerate(targets):
         tdata = b""
@@ -86,7 +86,7 @@ def build(file, targets, device=DEFAULT_DEVICE):
         data += tdata
     data = struct.pack("<5sBIB", b"DfuSe", 1, len(data) + 11, len(targets)) + data
     v, d = map(lambda x: int(x, 0) & 0xFFFF, device.split(":", 1))
-    data += struct.pack("<4H3sB", 0, d, v, 0x011A, b"UFD", 16)
+    data += struct.pack("<4H3sB", 0, d, v, dfu_version, b"UFD", 16)
     crc = compute_crc(data)
     data += struct.pack("<I", crc)
     open(file, "wb").write(data)

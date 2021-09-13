@@ -1,0 +1,65 @@
+#pragma once
+
+#include "modm/platform/device.hpp"
+#include <modm/math/algorithm/prescaler.hpp>
+#include <modm/platform/gpio/connector.hpp>
+#include <modm/platform/clock/clockgen.hpp>
+
+namespace purpledrop {
+
+class I2cMaster{{ id }} {
+public:
+	template< class... Pins >
+	static void
+	connect()
+	{
+		using SdaPin = modm::platform::GetPin_t<modm::platform::PeripheralPin::Twd, Pins...>;
+		using SclPin = modm::platform::GetPin_t<modm::platform::PeripheralPin::Twck, Pins...>;
+		using Flexcom = modm::platform::Peripherals::Flexcom<{{ id | int }}>;
+		using SdaConnector = typename SdaPin::template Connector<Flexcom, Flexcom::Twd>;
+		using SclConnector = typename SclPin::template Connector<Flexcom, Flexcom::Twck>;
+		SdaConnector::connect();
+		SclConnector::connect();
+	}
+
+	template< class SystemClock, modm::baudrate_t baudrate, modm::percent_t tolerance=modm::pct(1) >
+	static inline void
+	initialize(uint32_t irq_priority=5) {
+        
+		modm::platform::ClockGen::enable<modm::platform::ClockPeripheral::Flexcom{{ id }}>();
+		FLEXCOM{{ id }}->FLEXCOM_MR = FLEXCOM_MR_OPMODE_TWI;
+
+		// Divider is CxDIV * 2**CKDIV + 3
+		// First, pick the smallest CKDIV that lets us reach frequency
+		constexpr float div = SystemClock::Mck / baudrate;
+		constexpr int ckdiv = std::max((int)std::ceil(std::log2((div - 3) / 512)), 0);
+
+		constexpr auto result = modm::Prescaler::from_function(
+			SystemClock::Mck,
+			baudrate,
+			1,
+			255,
+			[ckdiv](uint32_t x) { return 2 * x * (1<<ckdiv) + 3; }
+			);
+
+		TWI{{ id }}->TWI_CWGR = \
+			TWI_CWGR_CKDIV(ckdiv) |
+			TWI_CWGR_CLDIV(result.prescaler) |
+        TWI_CWGR_CHDIV(result.prescaler);
+
+        // Enable master mode
+        TWI{{ id }}->TWI_CR = TWI_CR_SVDIS | TWI_CR_MSEN;
+
+		// Enable the IRQ
+		NVIC_SetPriority(FLEXCOM{{ id }}_IRQn, irq_priority);
+		NVIC_EnableIRQ(FLEXCOM{{ id }}_IRQn);
+	}
+
+    static bool
+    write(uint8_t address, uint8_t *txbuf, uint32_t len);
+
+    static uint32_t
+    read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *rxbuf, uint32_t len);
+};
+
+} // namespace purpledrop

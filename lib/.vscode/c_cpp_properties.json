@@ -1,0 +1,15 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/../sam/modm/src"
+            ],
+            "defines": [],
+            "compilerPath": "/opt/gcc-arm-none-eabi-10-2020-q4-major/bin/arm-none-eabi-gcc",
+            "cStandard": "gnu17"
+        }
+    ],
+    "version": 4
+}
